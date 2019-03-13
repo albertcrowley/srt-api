@@ -297,13 +297,13 @@ function check_dryrun() {
 }
 
 function deploy_client(){
-    changedir "${TEMP_DIR}/srt-client/dist"
-    runline ${CF_CLI} push -m 64M srt-ui-${SPACE}
+    changedir "${TEMP_DIR}/srt-ui/dist"
+    runline ${CF_CLI} push -m 64M srt-client-${SPACE}
 }
 
 function deploy_server() {
-    changedir "${TEMP_DIR}/srt-server"
-    runline ${CF_CLI} push srt-api-${SPACE}
+    changedir "${TEMP_DIR}/srt-api"
+    runline ${CF_CLI} push srt-server-${SPACE}
 }
 
 read_args "$@"
