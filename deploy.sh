@@ -2,7 +2,7 @@
 
 POSITIONAL=()
 TEMP_DIR="/tmp"
-SERVER_REPO="http://acrowley:***REMOVED***@gitlab.tcg.com/SRT/srt-server.git"
+SERVER_REPO="http://acrowley:***REMOVED***@gitlab.tcg.com/SRT/srt-api.git"
 CLIENT_REPO="http://acrowley:***REMOVED***@gitlab.tcg.com/SRT/srt-client.git"
 TIME_STR=`date +%Y-%m-%d.%H.%M.%S`
 CWD=`pwd`
@@ -154,8 +154,8 @@ function help() {
     echo "usage: deploy.sh [OPTIONS] <SPACE> <TAG>"
     echo ""
     echo "    -d --dry-run    : do everything but push to cloud.gov"
-    echo "    -s --serverrepo : URI for srt-server repository"
-    echo "    -c --clientrepo : URI for srt-client repository"
+    echo "    -s --serverrepo : URI for srt-api repository"
+    echo "    -c --clientrepo : URI for srt-ui repository"
     echo "    -t --tempdir    : defaults to /tmp"
     echo "    -e --emailkey   : set the provided email key"
     echo "    -y --yes        : delete existing git repo in temp directory"
@@ -186,16 +186,16 @@ function setup_repositories() {
     changedir ${TEMP_DIR}
 
     if [[ "${YES}" = "true" ]]; then
-      runline "rm -rf srt-server"
-      runline "rm -rf srt-client"
+      runline "rm -rf srt-api"
+      runline "rm -rf srt-ui"
     fi
 
     if [[ "${RECLONE}" = "true" ]]; then
-        if [ -d "${TEMP_DIR}/srt-client" ]; then
+        if [ -d "${TEMP_DIR}/srt-ui" ]; then
             while true; do
-                read -p "${TEMP_DIR}/srt-client exists. Delete and re-clone?" yn
+                read -p "${TEMP_DIR}/srt-ui exists. Delete and re-clone?" yn
                 case $yn in
-                    [Yy]* ) rm -rf "${TEMP_DIR}/srt-client"; break;;
+                    [Yy]* ) rm -rf "${TEMP_DIR}/srt-ui"; break;;
                     [Nn]* ) break;;
                     * ) echo "Please answer yes or no.";;
                 esac
@@ -203,22 +203,22 @@ function setup_repositories() {
         fi
     fi
 
-    if [ ! -d "${TEMP_DIR}/srt-client" ]; then
+    if [ ! -d "${TEMP_DIR}/srt-ui" ]; then
         runline "git clone ${CLIENT_REPO}"
-        runline chmod 777 "${TEMP_DIR}/srt-client"
+        runline chmod 777 "${TEMP_DIR}/srt-ui"
     fi
-    changedir "${TEMP_DIR}/srt-client"
+    changedir "${TEMP_DIR}/srt-ui"
     runline "git reset --hard"
     runline "git fetch origin"
 
 
     changedir ${TEMP_DIR}
     if [[ "${RECLONE}" = "true" ]]; then
-        if [ -d "${TEMP_DIR}/srt-server" ]; then
+        if [ -d "${TEMP_DIR}/srt-api" ]; then
             while true; do
-                read -p "${TEMP_DIR}/srt-server exists. Delete and re-clone?" yn
+                read -p "${TEMP_DIR}/srt-api exists. Delete and re-clone?" yn
                 case $yn in
-                    [Yy]* ) rm -rf "${TEMP_DIR}/srt-server"; break;;
+                    [Yy]* ) rm -rf "${TEMP_DIR}/srt-api"; break;;
                     [Nn]* ) break;;
                     * ) echo "Please answer yes or no.";;
                 esac
@@ -226,11 +226,11 @@ function setup_repositories() {
         fi
     fi
 
-    if [ ! -d "${TEMP_DIR}/srt-server" ]; then
+    if [ ! -d "${TEMP_DIR}/srt-api" ]; then
         runline "git clone ${SERVER_REPO}"
-        runline chmod 777 "${TEMP_DIR}/srt-server"
+        runline chmod 777 "${TEMP_DIR}/srt-api"
     fi
-    changedir "${TEMP_DIR}/srt-server"
+    changedir "${TEMP_DIR}/srt-api"
     runline "git reset --hard"
     runline "git fetch origin"
 
@@ -239,14 +239,14 @@ function setup_repositories() {
 function checkout_tag() {
     # create the tag if requested
     if [[ "${CREATE_TAG}" == "true" ]]; then
-        changedir "${TEMP_DIR}/srt-client"
+        changedir "${TEMP_DIR}/srt-ui"
         runline git checkout ${BRANCH}
         runline git pull origin ${BRANCH}
         log git tag -a ${TAG} -m "baseline tag created for deployment"
         git tag -a ${TAG} -m "baseline tag created for deployment" || exit
         runline "git push origin ${TAG}"
 
-        changedir "${TEMP_DIR}/srt-server"
+        changedir "${TEMP_DIR}/srt-api"
         runline git checkout ${BRANCH}
         runline git pull origin ${BRANCH}
         log git tag -a ${TAG} -m "baseline tag created for deployment"
@@ -255,34 +255,34 @@ function checkout_tag() {
     fi
 
     # checkout the correct tag
-    changedir "${TEMP_DIR}/srt-client"
+    changedir "${TEMP_DIR}/srt-ui"
     runline git checkout ${TAG} 2>&1
-    changedir "${TEMP_DIR}/srt-server"
+    changedir "${TEMP_DIR}/srt-api"
     runline git checkout ${TAG} 2>&1
 }
 
 function build_client() {
-    changedir "${TEMP_DIR}/srt-client"
+    changedir "${TEMP_DIR}/srt-ui"
     runline npm install --loglevel=error
     runline ng build --env=${SPACE}
-    changedir "${TEMP_DIR}/srt-client/dist"
+    changedir "${TEMP_DIR}/srt-ui/dist"
     runline touch Staticfile
-    log "Writing version info to ${TEMP_DIR}/srt-client/dist/version.html"
-    echo "${VERSION_INFO}" >  "${TEMP_DIR}/srt-client/dist/version.html"
+    log "Writing version info to ${TEMP_DIR}/srt-ui/dist/version.html"
+    echo "${VERSION_INFO}" >  "${TEMP_DIR}/srt-ui/dist/version.html"
     log "DONE CLIENT BUILD"
 }
 
 function build_server() {
-    changedir "${TEMP_DIR}/srt-server"
+    changedir "${TEMP_DIR}/srt-api"
     # verify we have a config file for $SPACE
     if [[ ! -f "manifest.${SPACE}.yml" ]]; then
-      runline echo "No manifest file for ${SPACE} found. Expected srt-server/manifest.${SPACE}.yml"
+      runline echo "No manifest file for ${SPACE} found. Expected srt-api/manifest.${SPACE}.yml"
       exit
     fi
-    runline rm -f "${TEMP_DIR}/srt-server/manifest.yml"
+    runline rm -f "${TEMP_DIR}/srt-api/manifest.yml"
     runline cp "manifest.${SPACE}.yml" manifest.yml
-    log "Writing version info to ${TEMP_DIR}/srt-server/server/version.json"
-    echo "${VERSION_INFO}" >  "${TEMP_DIR}/srt-server/server/version.json"
+    log "Writing version info to ${TEMP_DIR}/srt-api/server/version.json"
+    echo "${VERSION_INFO}" >  "${TEMP_DIR}/srt-api/server/version.json"
     log "DONE CLIENT BUILD"
 }
 
@@ -298,12 +298,12 @@ function check_dryrun() {
 
 function deploy_client(){
     changedir "${TEMP_DIR}/srt-client/dist"
-    runline ${CF_CLI} push -m 64M srt-client-${SPACE}
+    runline ${CF_CLI} push -m 64M srt-ui-${SPACE}
 }
 
 function deploy_server() {
     changedir "${TEMP_DIR}/srt-server"
-    runline ${CF_CLI} push srt-server-${SPACE}
+    runline ${CF_CLI} push srt-api-${SPACE}
 }
 
 read_args "$@"
@@ -341,7 +341,7 @@ log "Deployment complete"
 # Don't use these yet, but we could use them to auto-route if necessary later.
 #
 #
-#   # create a new route "srt-server" in the dev space
-#   cf create-route dev app.cloud.gov --hostname srt-server
-#   # map the srt-server route to the srt-server-dev app
-#   cf map-route srt-server-dev app.cloud.gov --hostname srt-server
+#   # create a new route "srt-api" in the dev space
+#   cf create-route dev app.cloud.gov --hostname srt-api
+#   # map the srt-api route to the srt-api-dev app
+#   cf map-route srt-api-dev app.cloud.gov --hostname srt-api
