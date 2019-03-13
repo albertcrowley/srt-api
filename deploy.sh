@@ -17,7 +17,7 @@ function read_args() {
         key="$1"
 
         case $key in
-            -v|--verbose)
+            --verbose)
             VERBOSE=true
             shift # past argument
             ;;
@@ -37,6 +37,12 @@ function read_args() {
             ;;
             -t|--tempdir)
             TEMP_DIR="$2"
+            shift # past argument
+            shift # past value
+            ;;
+            -e|--emailkey)
+            EMAIL_KEY="$2"
+            USE_EMAIL_KEY=true
             shift # past argument
             shift # past value
             ;;
@@ -104,6 +110,14 @@ function changedir() {
     echo | tee -a ${LOG_FILE}
 }
 
+
+# Set email key
+function set_email_key() {
+    if [[ "${USE_EMAIL_KEY}" == "true" ]]; then
+      runline ${CF_CLI} set-env "srt-server-${SPACE}" SENDGRID_API_KEY ${EMAIL_KEY}
+    fi
+}
+
 # Check if the SENDGRID_API_KEY is set
 # set it if necessary
 function check_cloud_gov_env() {
@@ -139,12 +153,13 @@ function help() {
     echo
     echo "usage: deploy.sh [OPTIONS] <SPACE> <TAG>"
     echo ""
-    echo "    -d --dry-run : do everything but push to cloud.gov"
+    echo "    -d --dry-run    : do everything but push to cloud.gov"
     echo "    -s --serverrepo : URI for srt-server repository"
     echo "    -c --clientrepo : URI for srt-client repository"
-    echo "    -t --tempdir : defaults to /tmp"
-    echo "    -y --yes : delete existing git repo in temp directory"
-    echo "    -n --no : do not delete any existing git repo in temp directory"
+    echo "    -t --tempdir    : defaults to /tmp"
+    echo "    -e --emailkey   : set the provided email key"
+    echo "    -y --yes        : delete existing git repo in temp directory"
+    echo "    -n --no         : do not delete any existing git repo in temp directory"
     echo "    -b --create-tag-from-branch : Create TAG at head of this branch"
     echo ""
     echo ""
@@ -302,6 +317,8 @@ echo SPACE           = "${SPACE}"| tee ${LOG_FILE}
 echo TAG             = "${TAG}"| tee ${LOG_FILE}
 
 switch_space
+
+set_email_key
 
 setup_repositories
 
