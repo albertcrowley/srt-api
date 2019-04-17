@@ -2722,21 +2722,6 @@ let upData = [
   }
 ]
 
-let downData = [
-  {
-    agency: 'General Services Administration',
-    acronym: 'GSA',
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    agency: 'National Institutes of Health',
-    acronym: 'NIH',
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-]
-
 module.exports = {
   up: (queryInterface) => {
     return queryInterface.sequelize.query('delete from "Agencies"')
@@ -2745,10 +2730,7 @@ module.exports = {
       })
   },
   down: (queryInterface) => {
-    return queryInterface.sequelize.query('delete from "Agencies"')
-      .then(() => {
-        return queryInterface.bulkInsert('Agencies', downData)
-      }
-      )
+    // don't really want to roll this migration back in any case so put in a no-op
+    return queryInterface.sequelize.query('select 1 from "Agencies"')
   }
 }

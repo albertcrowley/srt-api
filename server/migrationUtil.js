@@ -49,7 +49,25 @@ async function migrate(upSql) {
   await pgClient.end()
 }
 
+/**
+ * Returns an object with an up and down functions that
+ * meets the signature expected by a Sequelize migration
+ *
+ * @param {Array} upSql
+ * @param {Array} downSql
+ * @return {{up: up, down: down}}
+ */
+function migrateUpDown(upSql, downSql) {
+  return {
+    up: async () => {
+      await migrate(upSql)
+    },
+    down: async () => {
+      await migrate(downSql)
+    }
+  }
+}
 
 module.exports = {
-  migrate: migrate
+  migrateUpDown: migrateUpDown
 }

@@ -8,11 +8,4 @@ let upSql = [
 let downSql = [
 ]
 
-module.exports = {
-  up: async () => {
-    await migrationUtils.migrate(upSql)
-  },
-  down: async () => {
-    await migrationUtils.migrate(downSql)
-  }
-}
+module.exports = migrationUtils.migrateUpDown(upSql, downSql)
