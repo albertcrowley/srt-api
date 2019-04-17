@@ -1,11 +1,10 @@
-'use strict';
-
+'use strict'
 
 /* Make this a no-op for now. */
 module.exports = {
-    up: async (queryInterface, Sequelize) => { },
-    down: async (queryInterface, Sequelize) => { }
-};
+  up: async () => { },
+  down: async () => { }
+}
 
 // const env = process.env.NODE_ENV || 'development';
 // const config = require(__dirname + '/../config/config.json')[env];
