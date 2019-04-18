@@ -2,7 +2,6 @@
 const env = process.env.NODE_ENV || 'development'
 const path = require('path')
 const config = require(path.join(__dirname, 'config', 'config.json'))[env]
-const pg = require('pg/lib')
 let connectionString = 'postgres://' + config.username + ':' + config.password + '@' + config.host + ':' + config.port + '/' + config.database
 
 /**
@@ -26,11 +25,12 @@ function runNext (pgClient, sql) {
  * Runs a series of SQL statements as a group.
  * Will roll back the entire set if any one fails.
  *
- * @param upSql
+ * @param sqlArray
+ * @param pg
  * @return {Promise<*|PromiseLike<*>|Promise<*>>}
  */
-async function migrate(upSql) {
-  let sqlArray = ['BEGIN', ...upSql, 'COMMIT']
+async function migrate(sqlArray, pg) {
+  sqlArray = ['BEGIN', ...sqlArray, 'COMMIT']
   let pgClient = new pg.Client(connectionString)
   await pgClient.connect()
   try {
@@ -55,15 +55,19 @@ async function migrate(upSql) {
  *
  * @param {Array} upSql
  * @param {Array} downSql
+ * @param pg optional postgres library module
  * @return {{up: up, down: down}}
  */
-function migrateUpDown(upSql, downSql) {
+function migrateUpDown(upSql, downSql, pg = null) {
+  if (pg === null) {
+    pg = require('pg/lib')
+  }
   return {
     up: async () => {
-      await migrate(upSql)
+      await migrate(upSql, pg)
     },
     down: async () => {
-      await migrate(downSql)
+      await migrate(downSql, pg)
     }
   }
 }
