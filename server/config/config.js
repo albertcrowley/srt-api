@@ -194,7 +194,7 @@ module.exports = {
       }
     },
     "emailLogOnly": false,
-    "spamProtect" : false,
+    "spamProtect" : true,
     "srt_server": {
       "port": 8080
     },
