@@ -198,11 +198,11 @@ module.exports = {
     "srt_server": {
       "port": 8080
     },
-    "srtClientUrl": "https://srt-client.app.cloud.gov",
+    "srtClientUrl": "https://srt.app.cloud.gov",
     "logStdOut" : true,
     "maxCas" : {
       "cas_url" : "https://login.max.gov/cas/",
-      "service_url" : "http://srt-server.app.cloud.gov",
+      "service_url" : "http://srt-server-prod.app.cloud.gov",
       "session_name" : "cas_user",
       "session_info" : "cas_userinfo",
       "is_dev_mode" : false,
