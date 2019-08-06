@@ -1,5 +1,5 @@
 # Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
-version: v1.13.4
+version: v1.13.5
 # ignores vulnerabilities until expiry date; change duration by modifying expiry date
 ignore:
   SNYK-JS-LODASH-450202:
@@ -18,4 +18,14 @@ ignore:
     - winston > async > lodash:
         reason: None given
         expires: '2019-08-02T13:10:53.461Z'
-patch: {}
+# patches apply the minimum changes required to fix a vulnerability
+patch:
+  SNYK-JS-LODASH-450202:
+    - express-winston > lodash:
+        patched: '2019-08-06T23:43:41.852Z'
+    - sequelize > lodash:
+        patched: '2019-08-06T23:43:41.852Z'
+    - sequelize-cli > lodash:
+        patched: '2019-08-06T23:43:41.852Z'
+    - winston > async > lodash:
+        patched: '2019-08-06T23:43:41.852Z'
