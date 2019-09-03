@@ -11,6 +11,7 @@ const session = require('express-session')
 const CASAuthentication = require('cas-authentication')
 const jwtSecret = common.jwtSecret || undefined
 const {getConfig} = require('./config/configuration')
+const logger = require('../config/winston')
 
 if (! jwtSecret) {
   console.log("No JWT secret defined.  Be sure to set JWT_SECRET in the environment before running startup")
@@ -54,6 +55,7 @@ module.exports = function (db, cas) {
       if (origin === undefined || common.CORSWhitelist.indexOf(origin) !== -1) {
         callback(null, true)
       } else {
+        logger.log('warning', 'Request from origin ' + origin + ' not allowed by CORS.', { tag: 'CORS'})
         callback(new Error('Not allowed by CORS'))
       }
     }
