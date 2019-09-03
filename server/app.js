@@ -11,7 +11,7 @@ const session = require('express-session')
 const CASAuthentication = require('cas-authentication')
 const jwtSecret = common.jwtSecret || undefined
 const {getConfig} = require('./config/configuration')
-const logger = require('../config/winston')
+const logger = require('./config/winston')
 
 if (! jwtSecret) {
   console.log("No JWT secret defined.  Be sure to set JWT_SECRET in the environment before running startup")
