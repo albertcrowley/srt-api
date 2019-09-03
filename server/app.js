@@ -51,8 +51,9 @@ module.exports = function (db, cas) {
   // setup CORS
   let corsOptions = {
     origin: function (origin, callback) {
-      console.log ("origin:", origin);
+      console.log ("origin -:- ", origin);
       if (origin === undefined || common.CORSWhitelist.indexOf(origin) !== -1) {
+        console.log ("running the callback");
         callback(null, true)
       } else {
         logger.log('warning', 'Request from origin ' + origin + ' not allowed by CORS.', { tag: 'CORS'})
