@@ -115,7 +115,9 @@ module.exports = function (db, cas) {
     secret            : common.jwtSecret,
     resave            : false,
     saveUninitialized : true,
-    cookie            : { sameSite : 'strict', secure: getConfig('sessionCookieSecure', true)  }
+    cookie            : {
+      sameSite : 'lax',
+      secure: getConfig('sessionCookieSecure', true)  }
   }));
 
   // This will prevent express from sending 304 responses.
