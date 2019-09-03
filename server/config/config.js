@@ -164,8 +164,7 @@ module.exports = {
       "dev_mode_user" : "dev_user",
       "renew" : true,
       "renew_query_parameter_name" : "bypassMaxsso"
-    },
-    "sessionCookieSecure" : false
+    }
   },
   "test": {
     "emailFrom": "crowley+srt@tcg.com",
