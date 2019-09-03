@@ -9,7 +9,6 @@ const versionInfo = require('../version.json')
  */
 module.exports = () => {
   let info = Object.assign({ env: env }, versionInfo)
-  info.session = 'check session'
   return {
     version: function create (req, res) {
       return res.status(200).send(info)
