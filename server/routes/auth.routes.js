@@ -331,7 +331,10 @@ module.exports = {
   casStage2 : async function (req, res) {
     /** @namespace req.session.cas_userinfo */
 
+    logger.log("debug", "Entering cas stage 2", { tag: "CAS" });
+
     if ( ! ( req.session && req.session['cas_userinfo'] && (req.session.cas_userinfo['max-id'] || req.session.cas_userinfo['maxId']  ))) {
+      logger.log("debug", "Did not get session", { tag: "CAS" });
       // didn't get CAS session info
       return res.status(302)
         .set('Location', config['srtClientUrl'] + 'auth') // send them back with no token
@@ -339,6 +342,7 @@ module.exports = {
     }
 
     if( ! verifyPIVUsed(req.session)) {
+      logger.log("debug", "Failed login type check", { tag: "CAS" });
       return res.status(302)
         .set('Location', encodeURI(config['srtClientUrl'] + '/auth' + '?error=PIV login required')) // send them back with no token
         .send(`<html lang="en"><body>Login Failed</body></html>`)
@@ -348,6 +352,8 @@ module.exports = {
 
     let responseJson = await tokenJsonFromCasInfo(req.session.cas_userinfo, common.jwtSecret)
     let location = `${config['srtClientUrl']}/auth?token=${responseJson}`
+
+    logger.log("debug", "redirecting to " + location, { tag: "CAS" });
 
     return res.status(302)
       .set('Location', location)
