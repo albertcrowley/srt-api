@@ -116,7 +116,7 @@ module.exports = function (db, cas) {
     resave            : false,
     saveUninitialized : true,
     cookie            : {
-      // sameSite : 'lax',
+      sameSite : 'lax',
       secure: getConfig('sessionCookieSecure', true)  }
   }));
 
