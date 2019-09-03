@@ -61,7 +61,7 @@ module.exports = function (db, cas) {
       }
     }
   }
-  app.use(cors(corsOptions));
+  // app.use(cors(corsOptions));
 
   if (env === 'development' || env === 'sqlite') {
     expressWinston.requestWhitelist.push('body')
