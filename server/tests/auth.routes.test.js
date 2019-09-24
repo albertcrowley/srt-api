@@ -1,5 +1,5 @@
 const request = require('supertest')
-const CASAuthentication = require('cas-authentication');
+const CASAuthentication = require('../cas');
 let app = null
 const supertestSession = require('supertest-session')
 const mockToken = require('./mocktoken')
