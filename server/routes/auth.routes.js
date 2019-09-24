@@ -358,6 +358,8 @@ module.exports = {
   casStage2 : async function (req, res) {
     /** @namespace req.session.cas_userinfo */
 
+    logger.log("debug", "Entering CAS Stage2", {tag: "CAS", request : req})
+
     if ( ! ( req.session && req.session['cas_userinfo'] && (req.session.cas_userinfo['max-id'] || req.session.cas_userinfo['maxId']  ))) {
       // didn't get CAS session info
       return res.status(302)

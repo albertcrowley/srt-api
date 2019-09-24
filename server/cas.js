@@ -86,6 +86,7 @@ function CASAuthentication(options) {
           }
           var success = result.serviceresponse.authenticationsuccess;
           if (success) {
+            logger.log("debug", "Success. Running callback")
             return callback(null, success.user, success.attributes);
           }
           else {
@@ -360,6 +361,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
           if (this.session_info) {
             req.session[ this.session_info ] = attributes || {};
           }
+          logger.log("debug", `CAS Success - redirect to ${req.session.cas_return_to}`, {tag: "CAS", session: req.session} )
           res.redirect(req.session.cas_return_to);
         }
       }.bind(this));
