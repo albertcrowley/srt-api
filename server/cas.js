@@ -341,7 +341,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
     };
   }
 
-  logger.log("debug", "CAS request", {tag: "CAS", request: request})
+  logger.log("debug", "CAS request", {tag: "CAS", request: requestOptions})
 
   var request = this.request_client.request(requestOptions, function(response) {
     response.setEncoding( 'utf8' );
