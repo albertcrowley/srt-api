@@ -36,7 +36,7 @@ module.exports = function (db, cas) {
   if ( ! cas ) {
     let casConfig = config['maxCas']
     casConfig.dev_mode_info = common['casDevModeData']
-    cas = new CASAuthentication(casConfig)
+    cas = new CASAuthentication(casConfig, logger)
   }
 
   let authRoutes = require('./routes/auth.routes')
