@@ -378,6 +378,8 @@ module.exports = {
   casStage2 : async function (req, res) {
     /** @namespace req.session.cas_userinfo */
 
+    logger.log("debug", "Entering casStage2", {tag: "cas", body:req.body, headers:req.headers, res: res})
+
     if ( ! ( req.session && req.session['cas_userinfo'] && (req.session.cas_userinfo['max-id'] || req.session.cas_userinfo['maxId']  ))) {
       // didn't get CAS session info
       return res.status(302)
@@ -391,7 +393,7 @@ module.exports = {
         .send(`<html lang="en"><body>Login Failed</body></html>`)
     }
 
-    logger.log('info', req.session.cas_userinfo['email-address'] + ' authenticated with MAX CAS ID ' + req.session.cas_userinfo['max-id'], {cas_userinfo: req.session.cas_userinfo, tag: 'casStage2'})
+    logger.log('info', req.session.cas_userinfo && req.session.cas_userinfo['email-address'] + ' authenticated with MAX CAS ID ' + req.session.cas_userinfo['max-id'], {cas_userinfo: req.session.cas_userinfo, tag: 'casStage2'})
 
     let responseJson = await tokenJsonFromCasInfo(req.session.cas_userinfo, common.jwtSecret)
     let location = `${config['srtClientUrl']}/auth?token=${responseJson}`
