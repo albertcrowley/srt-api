@@ -22,7 +22,7 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.18.3",
-    "cas-authentication": "0.0.8",
+    "cas-authentication": "github:albertcrowley/cas-authentication#master",
     "cors": "^2.8.5",
     "express": "^4.14.0",
     "express-session": "^1.16.1",
