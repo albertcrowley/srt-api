@@ -207,19 +207,30 @@ function mergeOnePrediction (older, newer) {
  * @return Array Merged prediction list
  */
 function mergePredictions (predictionList) {
-  let merged = {}
+  let merged = []
 
   for (let p of predictionList) {
-    if (merged[p.solNum]) {
-      let newer = (merged[p.solNum].date > p.date) ? merged[p.solNum] : p
-      let older = (merged[p.solNum].date > p.date) ? p : merged[p.solNum]
-      merged[p.solNum] = mergeOnePrediction(older, newer)
+    let indexOfDuplicate = findDuplicateIndex(merged, p.solNum);
+    if (indexOfDuplicate != -1) {
+      let newer = (merged[indexOfDuplicate].date > p.date) ? merged[indexOfDuplicate] : p
+      let older = (merged[indexOfDuplicate].date > p.date) ? p : merged[indexOfDuplicate]
+      merged[indexOfDuplicate] = mergeOnePrediction(older, newer)
     } else {
-      merged[p.solNum] = Object.assign({}, p)
+
+      merged.push(Object.assign({}, p))
     }
   }
 
   return (Object.keys(merged)).map(key => merged[key])
+}
+
+function findDuplicateIndex(predictionList, solNumber ) {
+  for (let i = 0; i < predictionList.length; i++) {
+    if (predictionList[i].solNum === solNumber) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 /**
@@ -240,14 +251,7 @@ function makePostgresDate (origDate) {
   return split[2] + '-' + split[0] + '-' + split[1]
 }
 
-/**
- * Returns all predictions that match the given filter
- *
- * @param {PredictionFilter} filter Return predictions that match the given filter
- * @return {Promise<Array(Prediction)>} All predictions that match the filter
- */
-/** @namespace filter.numDocs */
-function getPredictions (filter) {
+function buildWhereArray(filter) {
   let agency = (filter.agency) ? filter.agency.split(' (')[0] : undefined
   let office = filter.office
   let numDocs = filter.numDocs
@@ -255,9 +259,8 @@ function getPredictions (filter) {
   let startDate = (filter.startDate) ? filter.startDate : filter.fromPeriod
   let endDate = (filter.endDate) ? filter.endDate : filter.toPeriod
   let eitLikelihood = filter.eitLikelihood
-
-
   let whereArray = ['1 = 1']
+
   if (office && office !== '') {
     whereArray.push("notice_data->>'office' = " + SqlString.escape(office, null, 'postgres'))
   }
@@ -282,18 +285,55 @@ function getPredictions (filter) {
     whereArray.push('date is not null')
   }
 
-  // put in a way to optionally limit the number of solicitations returned if no other filter is used
-  let filter_used = (whereArray.length > 1)
-  let limit = configuration.getConfig('SolicitationCountLimit', '2000000000')  // default to one less than max integer
-  if (limit !== '2000000000' && !filter_used ) {
-    whereArray.push(`solicitation_number in (select solicitation_number from notice order by date desc limit ${limit} )`)
-  }
+  return whereArray
+}
 
 
-  let where = whereArray.join(' AND ')
-  let sql = `
-            -- noinspection SqlResolve
-            select n.*, notice_type, attachment_json 
+async function getOrdering(filter) {
+
+  let map = {'reviewRec' : 'compliant', 'date' : 'date', 'agency': 'agency', 'noticeType': 'notice_type_id', 'solNum': 'solicitation_number'}
+  let sort_col = map[filter.sortField] || filter.sortField
+
+  // use id as a secondary order to make sure items with the identical sort field come out in the same order every time
+  let sql = `select solicitation_number from
+            (select distinct on (notice.solicitation_number) * from notice) n 
+             order by ${sort_col} ${(filter.sortOrder < 0) ? "DESC " : "ASC "} , id`
+
+  console.log(sql)
+
+
+  return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
+    .then ( (result)=> {
+      result[0].solicitation_number //?
+      slice = result.slice(filter.first, filter.rows + filter.first)
+      let res_array = [] //slice.map( (x) => x.solicitation_number)
+
+      for (let i=0 ; i < slice.length; i++) {
+        res_array.push(slice[i].solicitation_number)
+      }
+
+      return res_array;
+    })
+    .catch( (error) =>{
+      error //?
+      logger.log('error', 'Attempt to sort by an unknown field', {tag: 'prediction route', error: error})
+      return ([])
+    })
+}
+
+/**
+ * Returns all predictions that match the given filter
+ *
+ * @param {PredictionFilter} filter Return predictions that match the given filter
+ * @return {Promise<Array(Prediction)>} All predictions that match the filter
+ */
+/** @namespace filter.numDocs */
+async function getPredictions (filter, multiplier = 2) {
+
+  let solNumsToGet = await getOrdering(filter);
+
+
+  let sql = `select n.*, notice_type, attachment_json
             from notice n 
             left join ( 
                   select notice_id, json_agg(src) as attachment_json, count(*) as attachment_count
@@ -305,20 +345,45 @@ function getPredictions (filter) {
                   group by  notice_id
                   ) a on a.notice_id = n.id
             left join notice_type t on n.notice_type_id = t.id
-            WHERE ${where} 
-            order by id desc`
+            WHERE solicitation_number in ('${ solNumsToGet.join("','") }')`
 
-  return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
-    .then(notices => {
-      let data = []
-      for (let i = 0; i < notices.length; i++) {
-        data.push(makeOnePrediction(notices[i]))
-      }
-      return mergePredictions(data)
-    })
-    .catch(e => {
-      logger.log('error', 'error in: getPredictions', { error:e, tag: 'getPredictions', sql: sql })
-      return null
+  let count_sql = `select solicitation_number from (select distinct on (notice.solicitation_number) * from notice) n `
+
+   // console.log(sql)
+
+  return db.sequelize.query(count_sql, { type: db.sequelize.QueryTypes.SELECT })
+    .then( (count_result) => {
+      return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
+        .then(notices => {
+          let data = []
+          for (let i = 0; i < notices.length; i++) {
+            data.push(makeOnePrediction(notices[i]))
+          }
+          let merged = mergePredictions(data)
+
+          // check to see if the merging put us under the expected return count
+          if (filter.rows &&
+            merged.length < filter.rows &&
+            data.length == (filter.rows * multiplier)) // don't ask for more rows if they already shorted us
+          {
+            // try again but get  twice as many db rows before merging.
+            return getPredictions(filter, multiplier * 2)
+          }
+
+          let sortedResult = []
+          for (let i=0; i < solNumsToGet.length; i++) {
+            let sn = solNumsToGet[i]
+            let x = merged.filter( (x) => {return x.solNum = sn})
+            sortedResult[i] = {}
+            Object.assign(sortedResult[i], x[0])
+          }
+
+          return { predictions: sortedResult.slice(0,filter.rows), totalCount: count_result[0].count}
+          })
+        .catch(e => {
+          console.log('error', 'error in: getPredictions', { error:e, tag: 'getPredictions', sql: sql })
+          return null
+        })
     })
 }
 
@@ -327,6 +392,7 @@ function getPredictions (filter) {
  */
 module.exports = {
 
+  getOrdering: getOrdering,
   getPredictions: getPredictions,
   mergePredictions: mergePredictions,
 
@@ -353,6 +419,8 @@ module.exports = {
 
     // verify that only supported filter params are used
     let validKeys = ['agency', 'office', 'numDocs', 'solNum', 'eitLikelihood', 'startDate', 'fromPeriod', 'endDate', 'toPeriod']
+    // add in the keys used by the PrimeNG table lazy loader
+    validKeys.push('first', 'filters', 'globalFilter', 'multiSortMeta', 'rows', 'sortField', 'sortOrder')
     for (let i = 0; i < keys.length; i++) {
       if (req.body[keys[i]] !== '' && !validKeys.includes(keys[i])) {
         logger.log('error', 'Received unsupported filter parameter '+ keys[i], { body: req.body, tag: 'predictionFilter'})
@@ -373,7 +441,6 @@ module.exports = {
         if (predictions == null) {
           return res.status(500).send({})
         }
-
         return res.status(200).send(predictions)
       })
       .catch(e => {
@@ -382,170 +449,3 @@ module.exports = {
       })
   }
 }
-
-// *********************************************************
-//  below code is used if you want to mock solicitation data
-// *********************************************************
-//
-// Math.seed = 52;
-//
-// function getRandomInt(min, max) {
-//     max = (max === undefined) ? 1 : max;
-//     min = (min === undefined) ? 1 : min;
-//
-//     Math.seed = (Math.seed * 9301 + 49297) % 233280;
-//     let rnd = Math.seed / 233280;
-//
-//     return Math.floor(min + rnd * (max - min));
-// }
-// function pickOne(a) {
-//     return a[getRandomInt(0, a.length)]
-// }
-//
-// let template =
-//
-//     {
-//         solNum: "1234",
-//         title: "sample title",
-//         url: "http://www.tcg.com/",
-//         predictions: {
-//             value: "GREEN"
-//         },
-//         reviewRec: "Non-compliant", // one of "Compliant", "Non-compliant (Action Required)", or "Undetermined"
-//         date: "01/01/2019",
-//         numDocs: 3,
-//         eitLikelihood: {
-//             naics: "naics here",  // initial version uses NAICS code to determine
-//             value: "45"
-//         },
-//         agency: "National Institutes of Health",
-//         office: "Office of the Director",
-//
-//         contactInfo: {
-//             contact: "contact str",
-//             name: "Joe Smith",
-//             position: "Manager",
-//             email: "joe@example.com"
-//         },
-//         position: "pos string",
-//         reviewStatus: "on time",
-//         noticeType: "N type",
-//         actionStatus: "ready",
-//         actionDate: "02/02/2019",
-//         parseStatus: [{
-//             name: "attachment name",
-//             status: "??? enumeration, one of 'successfully parsed', 'processing error'  maybe derived f"
-//         }],
-//         history: [{
-//             date: "03/03/2018",
-//             action: "sending",
-//             user: "crowley",
-//             status: "submitted"
-//         }],
-//         feedback: [{
-//             questionID: "1",
-//             question: "Is this a good solicitation?",
-//             answer: "Yes",
-//         }],
-//         undetermined: true
-//
-//     };
-//
-// // let reviewRecArray = ["Compliant", "Non-compliant (Action Required)", "Undetermined"];
-// let noticeTypeArray = ["Presolicitation", "Combined Synopsis/Solicitation", "Sources Sought", "Special Notice", "Other"];
-// let actionStatusArray = ["Email Sent to POC", "reviewed solicitation action requested summary", "provided feedback on the solicitation prediction result"];
-//
-// function mockData() {
-//     if (myCache.get("sample_data") != undefined) {
-//         return myCache.get("sample_data");
-//     }
-//
-//         let reviewRecArray = ["Compliant", "Non-compliant (Action Required)", "Undetermined"];
-//         let noticeTypeArray = ["Presolicitation", "Combined Synopsis/Solicitation", "Sources Sought", "Special Notice", "Other"];
-//         let actionStatusArray = ["Email Sent to POC", "reviewed solicitation action requested summary", "provided feedback on the solicitation prediction result"];
-//         let template =
-//
-//             {
-//                 solNum: "1234",
-//                 title: "sample title",
-//                 url: "http://www.tcg.com/",
-//                 predictions: {
-//                     value: "GREEN"
-//                 },
-//                 reviewRec: "Compliant", // one of "Compliant", "Non-compliant (Action Required)", or "Undetermined"
-//                 date: "01/01/2019",
-//                 numDocs: 3,
-//                 eitLikelihood: {
-//                     naics: "naics here",  // initial version uses NAICS code to determine
-//                     value: "45"
-//                 },
-//                 agency: "National Institutes of Health",
-//                 office: "Office of the Director",
-//
-//                 contactInfo: {
-//                     contact: "contact str",
-//                     name: "Joe Smith",
-//                     position: "Manager",
-//                     email: "joe@example.com"
-//                 },
-//                 position: "pos string",
-//                 reviewStatus: "on time",
-//                 noticeType: "N type",
-//                 actionStatus: "ready",
-//                 actionDate: "02/02/2019",
-//                 parseStatus: [{
-//                     name: "doc 1",
-//                     status: "parsed"
-//                 }],
-//                 history: [{
-//                     date: "03/03/2018",
-//                     action: "sending",
-//                     user: "crowley",
-//                     status: "submitted"
-//                 }],
-//                 feedback: [{
-//                     questionID: "1",
-//                     question: "Is this a good solicitation?",
-//                     answer: "Yes",
-//                 }],
-//                 undetermined: true
-//
-//             };
-//
-//         let sample_data = new Array();
-//
-//         for (let i = 0; i < 6000; i++) {
-//             let o = Object.assign({}, template);
-//
-//             o.title = randomWords({exactly: 1, wordsPerString: getRandomInt(2, 7)})[0];
-//             o.reviewRec = pickOne(reviewRecArray);
-//             o.agency = pickOne(['Navy Department', 'Education Department',   'National Institutes of Health', 'National Library of Medicine']);
-//             o.numDocs = getRandomInt(0,3);
-//             o.solNum = getRandomInt(999, 99999999);
-//             o.noticeType = pickOne(noticeTypeArray);
-//             o.actionStatus = pickOne(actionStatusArray);
-//             o.actionDate = new Date( getRandomInt(2018, 2020),  getRandomInt(0, 12),getRandomInt(1,27));;;
-//             o.date = new Date( getRandomInt(2018, 2020),  getRandomInt(0, 12),getRandomInt(1,27));;
-//             o.office = randomWords({exactly: 1, wordsPerString: getRandomInt(2, 4)})[0];
-//             o.predictions = Object.assign({}, template.predictions);
-//             o.predictions.value = pickOne(["RED", "GREEN"]);
-//             o.eitLikelihood = Object.assign({}, template.eitLikelihood);
-//             o.eitLikelihood.naics = getRandomInt(10, 99999);
-//             o.eitLikelihood.value = pickOne(['Yes', 'No']);
-//             o.undetermined = (getRandomInt(0,2) == 0);
-//
-//             o.parseStatus = [];
-//             let count = getRandomInt(0,3);
-//             for (let x=0; x < count; x++) {
-//                 let stat = {};
-//                 stat.name = "doc 1";
-//                 stat.status = pickOne( ["successfully parsed", "processing error"] )
-//                 o.parseStatus.push ( stat )
-//             }
-//
-//             sample_data.push(o);
-//         }
-//
-//         myCache.set("sample_data", sample_data);
-//         return sample_data;
-// }
