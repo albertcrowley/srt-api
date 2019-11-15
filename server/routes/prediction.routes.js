@@ -12,7 +12,6 @@ const db = require('../models/index')
 const SqlString = require('sequelize/lib/sql-string')
 const env = process.env.NODE_ENV || 'development'
 const config = require('../config/config.js')[env]
-const configuration = require('../config/configuration')
 
 /**
  * PredictionFilter
@@ -211,7 +210,7 @@ function mergePredictions (predictionList) {
 
   for (let p of predictionList) {
     let indexOfDuplicate = findDuplicateIndex(merged, p.solNum);
-    if (indexOfDuplicate != -1) {
+    if (indexOfDuplicate !== -1) {
       let newer = (merged[indexOfDuplicate].date > p.date) ? merged[indexOfDuplicate] : p
       let older = (merged[indexOfDuplicate].date > p.date) ? p : merged[indexOfDuplicate]
       merged[indexOfDuplicate] = mergeOnePrediction(older, newer)
@@ -259,6 +258,7 @@ function buildWhereArray(filter) {
   let startDate = (filter.startDate) ? filter.startDate : filter.fromPeriod
   let endDate = (filter.endDate) ? filter.endDate : filter.toPeriod
   let eitLikelihood = filter.eitLikelihood
+  let compliant = filter.reviewRec
   let whereArray = ['1 = 1']
 
   if (office && office !== '') {
@@ -284,39 +284,60 @@ function buildWhereArray(filter) {
     whereArray.push('date < ' + SqlString.escape(makePostgresDate(endDate), null, 'postgres'))
     whereArray.push('date is not null')
   }
+  if (compliant && compliant !== '') {
+    whereArray.push('compliant = ' + SqlString.escape(compliant, null, 'postgres'))
+  }
 
   return whereArray
 }
 
+async function getTotalCount(filter) {
+  let where = buildWhereArray(filter).join(" and ")
+  let sql = `select count(distinct solicitation_number) from notice WHERE ${where}`
+
+  return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
+    .then( (result) => {
+      return result[0].count;
+    })
+
+}
 
 async function getOrdering(filter) {
 
-  let map = {'reviewRec' : 'compliant', 'date' : 'date', 'agency': 'agency', 'noticeType': 'notice_type_id', 'solNum': 'solicitation_number'}
+  let map = {
+    'reviewRec': 'compliant',
+    'date': 'date',
+    'agency': 'agency',
+    'noticeType': 'notice_type_id',
+    'solNum': 'solicitation_number'
+  }
+
+  let sort_order = (filter.sortOrder) ? (filter.sortOrder < 0) ? "DESC " : "ASC " : ""
   let sort_col = map[filter.sortField] || filter.sortField
+  let sort = (sort_col) ? ` ${sort_col} ${sort_order}, ` : ''
+  let where = buildWhereArray(filter).join(' and ')
 
   // use id as a secondary order to make sure items with the identical sort field come out in the same order every time
   let sql = `select solicitation_number from
-            (select distinct on (notice.solicitation_number) * from notice) n 
-             order by ${sort_col} ${(filter.sortOrder < 0) ? "DESC " : "ASC "} , id`
-
-  console.log(sql)
+            (select distinct on (notice.solicitation_number) * from notice where ${where}) n 
+             order by ${sort} id`
+   console.log(sql)
 
 
   return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
-    .then ( (result)=> {
-      result[0].solicitation_number //?
-      slice = result.slice(filter.first, filter.rows + filter.first)
-      let res_array = [] //slice.map( (x) => x.solicitation_number)
+    .then((result) => {
+      let slice = result.slice(filter.first, filter.first + filter.rows)
 
-      for (let i=0 ; i < slice.length; i++) {
+      let res_array = [] //slice.map( (x) => x.solicitation_number)
+      for (let i = 0; i < slice.length; i++) {
         res_array.push(slice[i].solicitation_number)
       }
 
-      return res_array;
+      return res_array
     })
-    .catch( (error) =>{
+    .catch((error) => {
       error //?
-      logger.log('error', 'Attempt to sort by an unknown field', {tag: 'prediction route', error: error})
+      logger.log('error', 'Attempt to sort by an unknown field', { tag: 'prediction route', error: error })
       return ([])
     })
 }
@@ -330,8 +351,12 @@ async function getOrdering(filter) {
 /** @namespace filter.numDocs */
 async function getPredictions (filter, multiplier = 2) {
 
+  if (!filter) {
+    filter = {first:0, rows: 100, sortField: 'id', sortOrder: 1}
+  }
+  filter.first = (filter.first) ? filter.first : 0
+  filter.rows = (filter.rows !== undefined) ? filter.rows : 100
   let solNumsToGet = await getOrdering(filter);
-
 
   let sql = `select n.*, notice_type, attachment_json
             from notice n 
@@ -347,12 +372,7 @@ async function getPredictions (filter, multiplier = 2) {
             left join notice_type t on n.notice_type_id = t.id
             WHERE solicitation_number in ('${ solNumsToGet.join("','") }')`
 
-  let count_sql = `select solicitation_number from (select distinct on (notice.solicitation_number) * from notice) n `
-
-   // console.log(sql)
-
-  return db.sequelize.query(count_sql, { type: db.sequelize.QueryTypes.SELECT })
-    .then( (count_result) => {
+  console.log(sql)
       return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
         .then(notices => {
           let data = []
@@ -361,10 +381,11 @@ async function getPredictions (filter, multiplier = 2) {
           }
           let merged = mergePredictions(data)
 
+
           // check to see if the merging put us under the expected return count
           if (filter.rows &&
             merged.length < filter.rows &&
-            data.length == (filter.rows * multiplier)) // don't ask for more rows if they already shorted us
+            data.length === (filter.rows * multiplier)) // don't ask for more rows if they already shorted us
           {
             // try again but get  twice as many db rows before merging.
             return getPredictions(filter, multiplier * 2)
@@ -378,13 +399,22 @@ async function getPredictions (filter, multiplier = 2) {
             Object.assign(sortedResult[i], x[0])
           }
 
-          return { predictions: sortedResult.slice(0,filter.rows), totalCount: count_result[0].count}
+          return getTotalCount(filter)
+            .then( (totalCount) =>{
+              return {
+                predictions: sortedResult.slice(0,filter.rows),
+                first: filter.first,
+                rows: Math.min(filter.rows,sortedResult.length),
+                totalCount: totalCount
+              }
+            })
           })
         .catch(e => {
+          e //?
           console.log('error', 'error in: getPredictions', { error:e, tag: 'getPredictions', sql: sql })
           return null
         })
-    })
+    // })
 }
 
 /**
@@ -436,6 +466,10 @@ module.exports = {
       return res.status(501).send('The server does not yet support filter by ' + JSON.stringify(unsupportedKeys))
     }
 
+    // if there isn't any bouding on the result count, limit it to the first 100
+    req.body.first = (req.body.first !== undefined) ? req.body.first : 0
+    req.body.rows = (req.body.rows !== undefined) ? req.body.rows : 100
+
     return getPredictions(req.body)
       .then((predictions) => {
         if (predictions == null) {
@@ -445,6 +479,7 @@ module.exports = {
       })
       .catch(e => {
         logger.log('error', 'error in: predictionFilter', { error:e, tag: 'predictionFilter' })
+        e //?
         return res.status(500).send(data)
       })
   }
