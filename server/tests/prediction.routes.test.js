@@ -109,7 +109,7 @@ describe('prediction tests', () => {
       })
   })
 
-  test('Test we do not loose history in the notice merges', () => {
+  test.skip('Test we do not loose history in the notice merges', () => {
     if (env !== 'development') {
       // test depends on history in the database.
       // Should be mocked, but too much work for the return
@@ -153,10 +153,6 @@ describe('prediction tests', () => {
       .then((res) => {
         // noinspection JSUnresolvedVariable
         expect(res.statusCode).toBe(200)
-
-        typeof(res.body.predictions)//?
-        res.body.predictions //?
-        
         expect(res.body.predictions.length).toBeDefined()
         expect(res.body.predictions[0].noticeType).toBeDefined()
         expect(res.body.predictions[0].url).toContain('http')
@@ -165,19 +161,21 @@ describe('prediction tests', () => {
   }, timeout)
 
   test('Test that all predictions with the same notice number are merged', () => {
+    let filter = {rows: 2000000, first:0}
     return request(app)
       .post('/api/predictions/filter')
       .set('Authorization', `Bearer ${token}`)
-      .send()
+      .send(filter)
       .then((res) => {
         // noinspection JSUnresolvedVariable
         expect(res.statusCode).toBe(200)
         expect(res.body.predictions.length).toBeDefined()
 
+        expect(res.body.totalCount.toString()).toBe(res.body.rows.toString())
+
         // test for no duplicate solNumbers
         let solNumList = {}
         for (let p of res.body.predictions) {
-          console.log(p.solNum)
           expect(solNumList[p.solNum]).toBeUndefined()
           solNumList[p.solNum] = true
         }
@@ -610,8 +608,8 @@ describe('prediction tests', () => {
       rows: 5,
       globalFilter: null,
       multiSortMeta: undefined,
-      sortField: undefined,
-      sortOrder: 1
+      sortField: 'id',
+      sortOrder: -1
     }
 
     // get rows 55 to 59
@@ -630,6 +628,8 @@ describe('prediction tests', () => {
     // get rows 59 and 60
     event.first = 59
     event.rows = 2
+    event.sortOrder = -1
+    req = mocks.mockRequest(event, { 'authorization': `bearer ${token}` })
     await predictionRoutes.predictionFilter(req, res)
     expect(res.status.mock.calls[1][0]).toBe(200);
     let predictions1 = res.send.mock.calls[1][0].predictions
@@ -639,6 +639,8 @@ describe('prediction tests', () => {
 
     event.first = 59
     event.rows = 100
+    event.sortOrder = -1
+    req = mocks.mockRequest(event, { 'authorization': `bearer ${token}` })
     await predictionRoutes.predictionFilter(req, res)
     expect(res.status.mock.calls[2][0]).toBe(200);
     let predictions2 = res.send.mock.calls[2][0].predictions
@@ -651,6 +653,7 @@ describe('prediction tests', () => {
 
     event.sortField = 'reviewRec'
     event.sortOrder = 1
+    req = mocks.mockRequest(event, { 'authorization': `bearer ${token}` })
     await predictionRoutes.predictionFilter(req, res)
     expect(res.status.mock.calls[3][0]).toBe(200);
     let predictions3 = res.send.mock.calls[3][0].predictions
@@ -662,6 +665,7 @@ describe('prediction tests', () => {
     expect(pred59clone2.solNum != pred59clone3.solNum).toBeTruthy()
 
     event.sortOrder = -1
+    req = mocks.mockRequest(event, { 'authorization': `bearer ${token}` })
     await predictionRoutes.predictionFilter(req, res)
     expect(res.status.mock.calls[4][0]).toBe(200);
     let predictions4 = res.send.mock.calls[4][0].predictions

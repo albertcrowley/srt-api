@@ -89,7 +89,8 @@ module.exports = {
       params.agency = agency
 
       return predictionRoutes.getPredictions(params)
-        .then((predictions) => {
+        .then((result) => {
+          let predictions = result.predictions
           let data = {
             // Total number of ICT
             TotalICT: predictions.length,

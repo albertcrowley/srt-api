@@ -36,7 +36,9 @@ describe('Prediction History', () => {
 
   test('Solicitations have a prediction history element', () => {
     return predictionRoutes.getPredictions({'solNum' : testSolNum} )
-      .then( predictions => {
+      .then( result => {
+        let predictions = result.predictions
+        result.predictions //?
         let p = predictions[0]
         expect(p).toHaveProperty('predictions')
         expect(p.predictions).toHaveProperty('history')
