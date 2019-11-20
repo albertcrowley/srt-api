@@ -46,7 +46,7 @@ describe('Prediction History', () => {
         expect(history).toBeArray()
         expect(history[0]).toHaveProperty('date')
         expect(history[0]).toHaveProperty('value')
-        expect(history.slice(-1)[0].date).toBe(p.date)
+        expect(history.slice(-1)[0].date.toString()).toBe(p.date.toString())
         expect(history.slice(-1)[0].value).toBe(p.predictions.value)
       })
   })

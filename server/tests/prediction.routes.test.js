@@ -161,7 +161,8 @@ describe('prediction tests', () => {
   }, timeout)
 
   test('Test that all predictions with the same notice number are merged', () => {
-    let filter = {rows: 2000000, first:0}
+    let row_count = 1001
+    let filter = {rows: row_count, first:0}
     return request(app)
       .post('/api/predictions/filter')
       .set('Authorization', `Bearer ${token}`)
@@ -171,7 +172,7 @@ describe('prediction tests', () => {
         expect(res.statusCode).toBe(200)
         expect(res.body.predictions.length).toBeDefined()
 
-        expect(res.body.totalCount.toString()).toBe(res.body.rows.toString())
+        expect(res.body.rows.toString()).toBe(row_count.toString())
 
         // test for no duplicate solNumbers
         let solNumList = {}
@@ -771,12 +772,18 @@ describe('prediction tests', () => {
     for (field of ['agency', 'date', 'compliant', 'solicitation_number']) {
       let order1 = await predictionRoutes.getPredictions({ first: 0, rows: 100, sortField: field })
       expect(order1.predictions[0]).toBeTruthy()
-      for (let i = 0; i < 90; i += 5) {
-        order = await predictionRoutes.getPredictions({ first: i, rows: 7, sortField: field })
+      for (let i = 0; i < 90; i += 32) {
+        let order = await predictionRoutes.getPredictions({ first: i, rows: 7, sortField: field })
+
+        // check that first = x is the same as the xth item when starting at 0
         expect(order.predictions[0].solNum).toBe(order1.predictions[i].solNum)
+
+        // check that we different predictions have different titles.
+        expect(order1.predictions[0].title).not.toBe(order1.predictions[1].title)
+
       }
     }
 
-  })
+  }, 15000)
 
 })
