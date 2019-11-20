@@ -12,6 +12,7 @@ const db = require('../models/index')
 const SqlString = require('sequelize/lib/sql-string')
 const env = process.env.NODE_ENV || 'development'
 const config = require('../config/config.js')[env]
+const cloneDeep = require('clone-deep')
 
 /**
  * PredictionFilter
@@ -207,29 +208,21 @@ function mergeOnePrediction (older, newer) {
  */
 function mergePredictions (predictionList) {
   let merged = []
+  let dupeIndex = {}
 
   for (let p of predictionList) {
-    let indexOfDuplicate = findDuplicateIndex(merged, p.solNum);
-    if (indexOfDuplicate !== -1) {
+    if (dupeIndex[p.solNum] !== undefined) {
+      let indexOfDuplicate = dupeIndex[p.solNum]
       let newer = (merged[indexOfDuplicate].date > p.date) ? merged[indexOfDuplicate] : p
       let older = (merged[indexOfDuplicate].date > p.date) ? p : merged[indexOfDuplicate]
       merged[indexOfDuplicate] = mergeOnePrediction(older, newer)
     } else {
-
       merged.push(Object.assign({}, p))
+      dupeIndex[ p.solNum ] = merged.length - 1
     }
   }
 
   return (Object.keys(merged)).map(key => merged[key])
-}
-
-function findDuplicateIndex(predictionList, solNumber ) {
-  for (let i = 0; i < predictionList.length; i++) {
-    if (predictionList[i].solNum === solNumber) {
-      return i;
-    }
-  }
-  return -1;
 }
 
 /**
@@ -321,7 +314,7 @@ async function getOrdering(filter) {
   let sql = `select solicitation_number from
             (select distinct on (notice.solicitation_number) * from notice where ${where}) n 
              order by ${sort} id`
-   console.log(sql)
+   logger.log('info', 'getOrdering SQL',  {tag: 'getOrdering', sql: sql})
 
 
   return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
@@ -351,12 +344,24 @@ async function getOrdering(filter) {
 /** @namespace filter.numDocs */
 async function getPredictions (filter, multiplier = 2) {
 
+  let where = ''
+  let solNumsToGet = []
   if (!filter) {
     filter = {first:0, rows: 100, sortField: 'id', sortOrder: 1}
   }
   filter.first = (filter.first) ? filter.first : 0
   filter.rows = (filter.rows !== undefined) ? filter.rows : 100
-  let solNumsToGet = await getOrdering(filter);
+  filter.rows = Math.min(filter.rows, 10000) // limit results to 10,000. Seems more than generous
+
+
+  // we don't want to get an ordering if the user wants a large number of records because that
+  // could cause a problem with an excessively long SQL statement, so give the option for unsorted
+  if (filter.sortField == 'unsorted') {
+    where = '' // if they ask for unsorted, give them everything bypassing the sorting and the limits
+  } else {
+    solNumsToGet = await getOrdering(filter);
+    where = `WHERE solicitation_number in ('${ solNumsToGet.join("','") }')`
+  }
 
   let sql = `select n.*, notice_type, attachment_json
             from notice n 
@@ -370,14 +375,14 @@ async function getPredictions (filter, multiplier = 2) {
                   group by  notice_id
                   ) a on a.notice_id = n.id
             left join notice_type t on n.notice_type_id = t.id
-            WHERE solicitation_number in ('${ solNumsToGet.join("','") }')`
+            ${where}`
 
-  console.log(sql)
+      logger.log('info', 'SQL query for predictions', {tag: 'predictions', sql: sql})
       return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
         .then(notices => {
           let data = []
           for (let i = 0; i < notices.length; i++) {
-            data.push(makeOnePrediction(notices[i]))
+            data[i] =cloneDeep(makeOnePrediction(notices[i]))
           }
           let merged = mergePredictions(data)
 
@@ -392,11 +397,17 @@ async function getPredictions (filter, multiplier = 2) {
           }
 
           let sortedResult = []
-          for (let i=0; i < solNumsToGet.length; i++) {
-            let sn = solNumsToGet[i]
-            let x = merged.filter( (x) => {return x.solNum = sn})
-            sortedResult[i] = {}
-            Object.assign(sortedResult[i], x[0])
+          if (filter.sortField === 'unsorted') {
+            sortedResult = merged;
+          } else {
+            // put them back in order
+            for (let i = 0; i < solNumsToGet.length; i++) {
+              let sn = solNumsToGet[i]
+              let x = merged.filter((x) => {
+                return x.solNum === sn
+              })
+              sortedResult[i] = cloneDeep(x[0])
+            }
           }
 
           return getTotalCount(filter)
@@ -411,7 +422,7 @@ async function getPredictions (filter, multiplier = 2) {
           })
         .catch(e => {
           e //?
-          console.log('error', 'error in: getPredictions', { error:e, tag: 'getPredictions', sql: sql })
+          logger.log('error', 'error in: getPredictions', { error:e, tag: 'getPredictions', sql: sql })
           return null
         })
     // })

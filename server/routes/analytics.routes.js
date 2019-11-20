@@ -87,6 +87,9 @@ module.exports = {
       params.fromPeriod = fromPeriod
       params.toPeriod = toPeriod
       params.agency = agency
+      params.first = 0
+      params.rows = Number.MAX_SAFE_INTEGER
+      params.sortField = 'unsorted' // set to unsorted so we get all results at once.
 
       return predictionRoutes.getPredictions(params)
         .then((result) => {
