@@ -6,6 +6,8 @@ const User = require('../models').User
 // noinspection JSUnresolvedVariable
 const Notice = require('../models').notice
 // noinspection JSUnresolvedVariable
+const NoticeType = require('../models').notice
+// noinspection JSUnresolvedVariable
 const Attachment = require('../models').attachment
 const env = process.env.NODE_ENV || 'development'
 const db = require('../models/index')
@@ -752,16 +754,16 @@ describe('prediction tests', () => {
   }
 
   test("sol num ordering SQL", async () => {
-    let order1 = await predictionRoutes.getOrdering({first: 0, rows: 100, sortField: 'agency'})
+    let order1 = await predictionRoutes.getOrdering({first: 0, rows: 100, sortField: 'solNum'})
 
-    for (let i = 0; i < 90; i+=5) {
-      let order = await predictionRoutes.getOrdering({first:i, rows:100, sortField: 'agency'})
+    for (let i = 0; i < 90; i+=22) {
+      let order = await predictionRoutes.getOrdering({first:i, rows:100, sortField: 'solNum'})
       expect(order[0]).toBe(order1[i])
     }
 
     let order2 = await predictionRoutes.getOrdering({first: 252, rows: 100, sortField: 'agency'})
 
-    for (let i = 0; i < 90; i+=5) {
+    for (let i = 0; i < 90; i+=29) {
       let order = await predictionRoutes.getOrdering({first:252+i, rows:100, sortField: 'agency'})
       expect(order[0]).toBe(order2[i])
     }
@@ -786,4 +788,67 @@ describe('prediction tests', () => {
 
   }, 15000)
 
+  async function globalFilterTest(word){
+    const filter = { first: 0, rows: 20000, globalFilter: word }
+    let {predictions} = await predictionRoutes.getPredictions(filter)
+
+    let found = false
+    for (p of predictions) {
+      found = p.title.toLowerCase().match(word.toLowerCase()) ||
+              p.noticeType.toLowerCase().match(word.toLowerCase()) ||
+              p.solNum.toLowerCase().match(word.toLowerCase()) ||
+              found
+      if (found) {
+        break;
+      }
+    }
+
+    if (! found ) {
+      console.log (`didn't find '${word}' in results`)
+    }
+
+    expect(found).toBeTruthy()
+
+  }
+
+  test("prediction global filter", async () => {
+    // pick a word out of the titles.
+    let {predictions} = await predictionRoutes.getPredictions({ first: 333, rows: 200 })
+
+    const data = [
+      {field:'title', regex: /[a-zA-Z]+/},
+      {field:'noticeType', regex: /[a-zA-Z]+/},
+      {field:'agency', regex: /[a-zA-Z]+/},
+      {field:'office', regex: /[a-zA-Z]+/},
+      {field:'reviewRec', regex: /[a-zA-Z]+/},
+      {field:'solNum', regex: /[0-9]+/}
+    ]
+
+    for (x of data ) {
+      let word = null
+      for (p of predictions) {
+        word = word || p[x.field].match(x.regex)  // pick out a word from the field
+      }
+      word = word[0] // grab the first match string
+      await globalFilterTest(word)
+    }
+
+    for (x of data ) {
+      let word = null
+      for (p of predictions) {
+        word = word || p[x.field].match(x.regex)  // pick out a word from the field
+      }
+      word = word[0].toLowerCase() // grab the first match string
+      await globalFilterTest(word)
+    }
+
+    // non-compliant search term acts strange
+    const filter = { first: 0, rows: 20000, globalFilter: 'non-compliant' }
+    let {totalCount: totalCount} = await predictionRoutes.getPredictions(filter)
+    let non_compliant = await Notice.findAll({where : {compliant:0}})
+
+    // not perfect, but generally totalCount should be nearly as many as the number of notice rows
+    expect(Number.parseInt(totalCount)).toBeGreaterThan(non_compliant.length/3)
+
+  })
 })
