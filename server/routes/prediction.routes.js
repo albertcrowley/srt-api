@@ -281,12 +281,29 @@ function buildWhereArray(filter) {
     whereArray.push('compliant = ' + SqlString.escape(compliant, null, 'postgres'))
   }
 
+  if (filter.globalFilter && filter.globalFilter !== ''){
+    let lower =  filter.globalFilter.toLowerCase()
+    whereArray.push(` LOWER (
+                        CONCAT ( 
+                           CASE WHEN compliant = 0 THEN 'non-compliant' WHEN compliant = 1 THEN 'compliant' END, 
+                           notice_data->>'subject', 
+                           notice_data->>'office', 
+                           history::text, 
+                           action::text, 
+                           solicitation_number, 
+                           notice_type, 
+                           agency, 
+                           date)) like '%${lower}%' `)
+  }
   return whereArray
 }
 
 async function getTotalCount(filter) {
   let where = buildWhereArray(filter).join(" and ")
-  let sql = `select count(distinct solicitation_number) from notice WHERE ${where}`
+  let sql = `SELECT count(distinct solicitation_number) 
+                FROM notice
+                JOIN notice_type nt on notice.notice_type_id = nt.id
+                WHERE ${where}`
 
   return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
     .then( (result) => {
@@ -305,16 +322,27 @@ async function getOrdering(filter) {
     'solNum': 'solicitation_number'
   }
 
+  let blackList = ['title', 'actionStatus', 'actionDate', 'office' ]
+  if (blackList.indexOf(filter.sortField) !== -1) {
+    let msg = `Invalid sort field request: '${filter.sortField}'`
+    logger.log("error", msg)
+    return false
+  }
+
+
   let sort_order = (filter.sortOrder) ? (filter.sortOrder < 0) ? "DESC " : "ASC " : ""
   let sort_col = map[filter.sortField] || filter.sortField
   let sort = (sort_col) ? ` ${sort_col} ${sort_order}, ` : ''
   let where = buildWhereArray(filter).join(' and ')
 
   // use id as a secondary order to make sure items with the identical sort field come out in the same order every time
-  let sql = `select solicitation_number from
-            (select distinct on (notice.solicitation_number) * from notice where ${where}) n 
-             order by ${sort} id`
-   logger.log('info', 'getOrdering SQL',  {tag: 'getOrdering', sql: sql})
+  let sql = `SELECT solicitation_number ` +
+            ` FROM ` +
+            `    (select distinct on (notice.solicitation_number) notice.* ` +
+            `     FROM notice  ` +
+            `     JOIN notice_type nt on notice.notice_type_id = nt.id ` +
+            `     WHERE ${where}) n  ` +
+            ` ORDER BY ${sort} id `
 
 
   return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
@@ -360,6 +388,10 @@ async function getPredictions (filter, multiplier = 2) {
     where = '' // if they ask for unsorted, give them everything bypassing the sorting and the limits
   } else {
     solNumsToGet = await getOrdering(filter);
+    if (solNumsToGet === -1) {
+      // bad sortField requested
+      throw (new Error("Invalid sort field or other error"))
+    }
     where = `WHERE solicitation_number in ('${ solNumsToGet.join("','") }')`
   }
 
@@ -376,6 +408,8 @@ async function getPredictions (filter, multiplier = 2) {
                   ) a on a.notice_id = n.id
             left join notice_type t on n.notice_type_id = t.id
             ${where}`
+
+
 
       logger.log('info', 'SQL query for predictions', {tag: 'predictions', sql: sql})
       return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
