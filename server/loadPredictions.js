@@ -10,20 +10,5 @@ predictionRoutes.updatePredictionTable()
   .then( () => {
     // process.exit(0)
     console.log ("loadPredications.js complete")
-
-    let sql = ' select * from information_schema.columns  where table_name like \'Predictions\'  '
-
-
-
-    return app.db.sequelize.query(sql)
-      .then( (rows) => {
-        console.log(rows)
-
-        let sql2 = ' select count(*) from "Predictions" '
-        return app.db.sequelize.query(sql2)
-          .then( (rows) => {
-            console.log(rows)
-          })
-      })
   })
 
