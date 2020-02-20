@@ -445,10 +445,9 @@ async function updatePredictionTable  () {
 
   let actualCount = 0
   let outdatedPredictions = await getOutdatedPrediction()
-  logger.debug(`there are ${outdatedPredictions.length} predictions to update`)
+  logger.debug(`there are outdated ${outdatedPredictions.length} predictions to update`)
   while (outdatedPredictions && outdatedPredictions.length > 0) {
     actualCount ++
-    logger.debug(`Working on number ${actualCount}`)
     let pred = outdatedPredictions.pop()
     pred.actionDate = makeDate(pred.actionDate)
     pred.date = makeDate(pred.date)
