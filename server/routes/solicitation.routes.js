@@ -73,13 +73,18 @@ module.exports = function (db, userRoutes) {
          * @return Promise
          */
     get: function (req, res) {
+      console.log ("starting get")
       return Notice.findByPk(req.params.id)
         .then((notice) => {
+          console.log ("line 78")
           if ( ! notice ) {  // no notice found with that ID
+            console.log ("no notice")
             return res.status(404).send({})
           }
+          console.log ("start innter")
           return predictionRoute.getPredictions({ solNum: notice.solicitation_number })
             .then(result => {
+              console.log ("inner")
               // we should only have one 'prediction' since they will all merge by solicitation number
               // but for consistency we should set the ID number to the one requested rather than to
               // a pseudo-random choice
@@ -89,6 +94,7 @@ module.exports = function (db, userRoutes) {
         })
         .catch((e) => {
           e //?
+          console.log ("catch")
           logger.log('error', 'error in: solicitation get', { error:e, tag: 'solicitation get' })
           return res.status(500).send('Error finding solicitation')
         })

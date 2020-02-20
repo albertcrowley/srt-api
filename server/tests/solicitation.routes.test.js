@@ -269,7 +269,7 @@ describe('solicitation tests', () => {
 
   test('Test attachment filenames', () => {
 
-    let limit = configuration.getConfig('SolicitationCountLimit', '2000000000')
+    let limit = configuration.getConfig('SolicitationCountLimit', '2000')
     let allowed_types = configuration.getConfig(config_keys.VISIBLE_NOTICE_TYPES).map( (x) => `'${x}'`).join(",") //?
     let sql = `select  n.solicitation_number, count(*) as c
                from ( 
