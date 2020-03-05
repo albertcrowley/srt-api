@@ -42,7 +42,7 @@ if (process.env.VCAP_SERVICES) {
     host: VCAP['aws-rds'][0]['credentials']['host'],
     port: VCAP['aws-rds'][0]['credentials']['port'],
     dialect: 'postgres',
-    logging: false
+    logging: true
   }
 
   dbConfig= {
