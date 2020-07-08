@@ -69,7 +69,7 @@ module.exports = {
                           n.action,
                           n.feedback,
                           p.history,
-                          p.title
+                          p.title 
                       from notice n
                                inner join public."Predictions" p on n.solicitation_number = p."solNum"
                       where (n.feedback::text <> '[]')
