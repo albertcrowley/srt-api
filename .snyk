@@ -40,6 +40,8 @@ patch:
   SNYK-JS-LODASH-567746:
     - express-winston > lodash:
         patched: '2020-05-04T17:00:24.282Z'
+      random-words > mocha > yargs-unparser > lodash:
+        patched: '2020-07-08T15:20:46.113Z'
     - sequelize > lodash:
         patched: '2020-05-04T17:00:24.282Z'
     - sequelize-cli > lodash:
