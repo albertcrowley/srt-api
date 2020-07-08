@@ -55,8 +55,8 @@ module.exports = {
                     title,
                     action,
                     history,
-                    (objaction ->> 'user')::text  as email,
-                    (objhistory ->> 'user')::text as Name,
+                    CASE WHEN (objaction ->> 'user')::text != '' THEN (objaction ->> 'user')::text
+                         ELSE (objhistory ->> 'user')::text END as email,
                     r1.feedback,
                     objfeedback ->> 'questionID'  as questionID,
                     objfeedback ->> 'question'    as question,
@@ -84,7 +84,7 @@ module.exports = {
                                                                                 lower(substr((objhistory ->> 'user')::text, position(' ' in (objhistory ->> 'user')::text) + 1)) || '%')
                 order by r1.solicitation_number, objfeedback ->> 'questionID'
             ) unordered
-        order by to_date(date, 'MM/DD/YYYY') desc, "solNum"
+        order by to_date(date, 'MM/DD/YYYY') desc, "solNum", questionID::int
     `
 
     try {
@@ -94,7 +94,7 @@ module.exports = {
         result.push(
           Object.assign({
             note: r.note, answer: r.answer, question: r.question, questionID: r.questionid, date: r.date,
-            solicitation_number: r.solNum, email: r.name, title: r.title, id: r.notice_id,
+            solicitation_number: r.solNum, email: r.email, title: r.title, id: r.notice_id,
           }))
       }
       return res.status(200).send(result)
