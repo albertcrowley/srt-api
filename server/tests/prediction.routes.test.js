@@ -1036,14 +1036,10 @@ describe('prediction tests', () => {
     predictionRoutes.updatePredictionTable()
 
 
-
     let preds = await predictionRoutes.getPredictions({"solNum": solNum}, {agency:"general services administration", userRole: "Administrator"})
 
-    preds.predictions[0] //?
-    preds.predictions[0].feedback
-    preds.predictions[0].feedback[0] //?
-    let a = preds.predictions[0].dataValues.feedback[0].answer //?
-    expect (preds.predictions[0].feedback[0].answer).toContain("Maybe") //?
+    let ans = preds.predictions[0].feedback[0].answer //?
+    expect (ans).toBe("Maybe") //?
 
 
   },30000)

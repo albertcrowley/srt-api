@@ -38,7 +38,7 @@ module.exports = {
                      and s.active
                      ${where}
                    order by p.date desc
-                   limit 1 offset ${offset}` //?
+                   limit 1 offset ${offset}`
             let rows = await db.sequelize.query(sql, null);
 
             expect(rows[0].length).toBeGreaterThan(0)

@@ -6,6 +6,7 @@ const surveyRoutes = require('../routes/survey.routes')
 const {coordinatorCASData,feedback} = require('./test.data')
 const random_words = require('random-words')
 const {getSolNumForTesting} = require('../shared/test_utils')
+const db = require('../models/index')
 
 let token = {}
 
@@ -53,18 +54,35 @@ describe('Survey routes tests', () => {
 
         expect(res_get.status.mock.calls[0][0]).toBe(200)
         body = res_get.send.mock.calls[0][0]
-        expect(body[0].answer).toBe("Maybe")
+        expect(body.responses[0].answer).toBe("Maybe")
 
     }, 600000)
 
 
-    test('Get a 404 if you ask for a survey response that does not exist', async () => {
+    test('Do we have a maxId associcated with each survey?', async () => {
 
+        solNum = await getSolNumForTesting({'offset': 2, 'notice_count': 4}) //?
+
+        let res = mocks.mockResponse();
+        let req = mocks.mockRequest({
+            "solNum": solNum,
+            "feedback": feedback
+        }, {'authorization': `bearer ${token}`}, {"solNum": solNum})
+        await surveyRoutes.postResponse(req, res)
+
+        let sql = `select "maxId" from survey_responses where "solNum" = '${solNum}' order by "updatedAt" desc`
+        let rows = await db.sequelize.query(sql, null);
+
+        expect(rows[0][0].maxId).toBe(coordinatorCASData["max-id"])
+
+    }, 600000)
+
+
+
+    test('Get a 404 if you ask for a survey response that does not exist', async () => {
         let res_get = mocks.mockResponse();
         let req_get = mocks.mockRequest({}, {'authorization': `bearer ${token}`}, {"solNum": "not a real sol number"})
         await surveyRoutes.get(req_get, res_get)
-
         expect(res_get.status.mock.calls[0][0]).toBe(404)
-
     })
 })

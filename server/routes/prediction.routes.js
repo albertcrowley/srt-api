@@ -165,7 +165,9 @@ async function makeOnePrediction (notice) {
       o.actionStatus = o.actionDate = ''
     }
 
-    o.feedback = notice.feedback ? notice.feedback : []
+    // o.feedback = notice.feedback ? notice.feedback : []
+    let [response_code, survey_response] = await survey_routes.getLatestSurveyResponse(notice.solicitation_number)
+    o.feedback = notice.feedback ? notice.feedback : survey_response.responses
     o.history = notice.history ? notice.history : []
 
     let email = ''
@@ -427,7 +429,7 @@ async function getPredictions (filter, user) {
     let final_predictions = []
     for (pred of preds) {
       let [status, feedback] = await survey_routes.getLatestSurveyResponse(pred.solNum) //?
-      final_predictions.push(Object.assign(pred.dataValues, {feedback: null}))
+      final_predictions.push(Object.assign(pred.dataValues, {feedback: feedback.responses}))
     }
 
     return {
@@ -571,8 +573,8 @@ async function updatePredictionTable  (clearAllAfterDate, background = false) {
   await prepareSolicitationTable()
 
   // lets try only running for max number of seconds before returning
-  const maxSeconds = getConfig("updatePredictionTableMaxRunTime", 20) //?
-  const queueDelaySeconds = getConfig("updatePredictionTableQueueDelay", 60) //?
+  const maxSeconds = getConfig("updatePredictionTableMaxRunTime", 20)
+  const queueDelaySeconds = getConfig("updatePredictionTableQueueDelay", 60)
 
 
   const start = new Date()
