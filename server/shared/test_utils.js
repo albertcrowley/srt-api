@@ -9,6 +9,7 @@ module.exports = {
      * offset - if you don't want the most recent solicitation for *every* test, use this to grab one offset rows back in the list
      * notice_count - Only return a solicitation with exactly notice_count notices matching the solication number
      * has_feedback - Only return a solicitation with feedback
+     * attachment_count - Only return a solicitation with exactly attachment_count attachments
      *
      * @param options
      * @returns {Promise<*>}
@@ -28,6 +29,13 @@ module.exports = {
             if ("has_feedback" in options) {
                 join += ` join survey_responses sr on p."solNum" = sr."solNum" `
                 where += ` and p."solNum" in (select distinct "solNum" from survey_responses where jsonb_typeof(response) = 'array' ) `
+            }
+
+            if ("attachment_count" in options) {
+                join += ` join (select count(*) as c, solicitation_number from attachment a 
+                                join notice n on a.notice_id = n.id 
+                                group by solicitation_number having count(*) = ${options.attachment_count}) attachment_counts 
+                                on attachment_counts.solicitation_number = p."solNum" `
             }
 
             let sql = `select p."solNum"

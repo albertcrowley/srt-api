@@ -135,14 +135,19 @@ module.exports = {
    *
    */
   postResponse: async (req, res) => {
-    const solNum = req.params.solNum || req.body.solNum.toString() //?
-    const response = req.body.response || req.body.feedback // the current API calls this "feedback" but we should accept either.
-    const user = authRoutes.userInfoFromReq(req) //?
+    try {
+      const solNum = req.params.solNum || req.body.solNum.toString() //?
+      const response = req.body.response || req.body.feedback // the current API calls this "feedback" but we should accept either.
+      const user = authRoutes.userInfoFromReq(req) //?
 
-    let [statusCode, send] = await updateSurveyResponse(solNum, response, user.maxId) //?
+      let [statusCode, send] = await updateSurveyResponse(solNum, response, user.maxId) //?
 
-    res.status(statusCode).send(send)
-
+      return res.status(statusCode).send(send)
+    } catch (e) {
+      logger.log("error", "Error updating survey response", {tag: "survey response", "error-message": e.message, err:e } )
+      e.message //?
+      return res.status(500).send({})
+    }
   },
 
   updateSurveyResponse : updateSurveyResponse,

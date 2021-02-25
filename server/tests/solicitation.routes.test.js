@@ -259,53 +259,28 @@ describe('solicitation tests', () => {
   })
 
 
-  test('Test attachment filenames', () => {
+    test('Test attachment filenames', async () => {
+        let solNum = await testUtils.getSolNumForTesting({"attachment_count": 3}) //?
+        let files = await db.sequelize.query(`select filename from attachment join notice n on attachment.notice_id = n.id where solicitation_number = '${solNum}'`)
+        let rows = await db.sequelize.query(`select id from notice where solicitation_number = '${solNum}' limit 1`)
+        let noticeId = rows[0][0].id //?
+        let res = await request(app)
+            .get('/api/solicitation/' + noticeId)
+            .set('Authorization', `Bearer ${token}`)
+            .send({})
 
-    let limit = configuration.getConfig('SolicitationCountLimit', '2000')
-    let allowed_types = configuration.getConfig(config_keys.VISIBLE_NOTICE_TYPES).map( (x) => `'${x}'`).join(",") //?
-    let sql = `select  n.solicitation_number, count(*) as c
-               from ( 
-                     select solicitation_number, attachment.* 
-                     from attachment 
-                     join notice on attachment.notice_id = notice.id 
-                     join notice_type nt on notice.notice_type_id = nt.id 
-                     where nt.notice_type in (${allowed_types})
-                    ) attachment  
-               join (select solicitation_number, min(date) as d from notice group by solicitation_number order by d desc limit ${limit}) n 
-                     on attachment.solicitation_number = n.solicitation_number
-               group by n.solicitation_number
-               having count(*) > 2`
+        // noinspection JSUnresolvedVariable
+        expect(res.statusCode).toBe(200)
 
-
-    return db.sequelize.query(sql)
-      .then((rows) => {
-        let solNum = rows[0][0].solicitation_number
-        return db.sequelize.query(`select filename from attachment join notice n on attachment.notice_id = n.id where solicitation_number = '${solNum}'`)
-          .then(files => {
-            return db.sequelize.query(`select id from notice where solicitation_number = '${solNum}' limit 1`)
-              .then(rows => {
-                let noticeId = rows[0][0].id //?
-                return request(app)
-                  .get('/api/solicitation/' + noticeId)
-                  .set('Authorization', `Bearer ${token}`)
-                  .send({})
-                  .then((res) => {
-                    // noinspection JSUnresolvedVariable
-                    expect(res.statusCode).toBe(200)
-
-                    let found = false
-                    for (let fileRow of files[0]) {
-                      if (res.body.parseStatus[0].name === fileRow.filename) {
-                        found = true
-                        break
-                      }
-                    }
-                    return expect(found).toBeTruthy()
-                  })
-              })
-          })
-      })
-  })
+        let found = false
+        for (let fileRow of files[0]) {
+            if (res.body.parseStatus[0].name === fileRow.filename) {
+                found = true
+                break
+            }
+        }
+        return expect(found).toBeTruthy()
+    })
 
   test('Solicitation audit', () => {
     let mock_notice = {

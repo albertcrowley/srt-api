@@ -422,13 +422,13 @@ async function getPredictions (filter, user) {
     // noinspection JSUnresolvedFunction
     let count = await Prediction.findAndCountAll(attributes)
 
-    preds.length //?
-    preds[0].dataValues.active //?
+    preds.length
+    preds[0].dataValues.active
 
     //Fill in the proper survey_results (aka feedback)
     let final_predictions = []
     for (pred of preds) {
-      let [status, feedback] = await survey_routes.getLatestSurveyResponse(pred.solNum) //?
+      let [status, feedback] = await survey_routes.getLatestSurveyResponse(pred.solNum)
       final_predictions.push(Object.assign(pred.dataValues, {feedback: feedback.responses}))
     }
 
@@ -586,7 +586,7 @@ async function updatePredictionTable  (clearAllAfterDate, background = false) {
   let outdatedPredictions = await getOutdatedPrediction(fetch_limit)
   let msg = (outdatedPredictions.length < fetch_limit)
     ? `${outdatedPredictions.length}`
-    : `${outdatedPredictions.length}+` //?
+    : `${outdatedPredictions.length}+`
     logger.debug(`there are ${msg} outdated predictions to update`)
 
   let timeout = false
