@@ -142,7 +142,7 @@ describe('User API Routes', () => {
       })
   })
 
-    test.only('test getUserInfo', async () => {
+    test('test getUserInfo', async () => {
 
         sql = `select id
                from "Users"

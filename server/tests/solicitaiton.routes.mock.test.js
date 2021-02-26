@@ -127,7 +127,7 @@ describe('solicitation tests',  () => {
 
     let res1 = mocks.mockResponse();
     let req1 = mocks.mockRequest({ } , {'authorization': `bearer ${adminToken}`})
-    req1.params = {"filters": { ["solNum"]: { "value": solNum, "matchMode": "equals" } } }
+    req1.body = {"filters": { ["solNum"]: { "value": solNum, "matchMode": "equals" } } }
     await predictionRoutes.predictionFilter(req1, res1)
     expect(res1.status.mock.calls[0][0]).toBe(200)
     let prediction = res1.send.mock.calls[0][0]['predictions'] //?
@@ -139,7 +139,7 @@ describe('solicitation tests',  () => {
 
     let res2 = mocks.mockResponse();
     let req2 = mocks.mockRequest({ } , {'authorization': `bearer ${adminToken}`})
-    req2.params = {"filters": { ["solNum"]: { "value": solNum, "matchMode": "equals" } } }
+    req2.body = {"filters": { ["solNum"]: { "value": solNum, "matchMode": "equals" } } }
     await predictionRoutes.predictionFilter(req2, res2)
     expect(res2.status.mock.calls[0][0]).toBe(200)
     prediction = res2.send.mock.calls[0][0]['predictions'] //?
