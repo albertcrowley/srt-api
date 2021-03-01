@@ -648,8 +648,8 @@ async function updatePredictionTable  (clearAllAfterDate, background = false) {
 
   if (timeout && background_count == 0) {
     background_count += 1
-    logger.log("info", `Prediction update hit time limit - queuing another round of updates. ${background_count} in the queue`)
-    setTimeout( function() { updatePredictionTable(null, true) } , 5000)
+    logger.log("info", `Prediction update hit time of ${maxSeconds} seconds limit - queuing another round of updates. ${background_count} in the queue`)
+    setTimeout( function() { updatePredictionTable(null, true) } , queueDelaySeconds)
   }
 
 
