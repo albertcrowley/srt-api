@@ -15,7 +15,7 @@ describe('Prediction Update Test', () => {
     return app.db.close();
   })
 
-  test.only('prediction table update', async () => {
+  test('prediction table update', async () => {
 
     await predictionRoutes.updatePredictionTable();
 

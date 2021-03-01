@@ -599,7 +599,7 @@ async function updatePredictionTable  (clearAllAfterDate, background = false) {
   await prepareSolicitationTable()
 
   // lets try only running for max number of seconds before returning
-  const maxSeconds = getConfig("updatePredictionTableMaxRunTime", 10) * (background ? 2 : 1)
+  const maxSeconds = getConfig("updatePredictionTableMaxRunTime", 10)
   const queueDelaySeconds = getConfig("updatePredictionTableQueueDelay", 60)
 
 
@@ -664,9 +664,9 @@ async function updatePredictionTable  (clearAllAfterDate, background = false) {
 
   if (timeout && background_count == 0) {
     background_count += 1
-    const queueDelayMilis = queueDelaySeconds * 1000
+    const queueDelayMilliseconds = queueDelaySeconds * 1000
     logger.log("info", `Prediction update hit time of ${maxSeconds} seconds limit - queuing another round of updates in ${queueDelaySeconds}. ${background_count} in the queue`)
-    setTimeout( function() { updatePredictionTable(null, true) } , queueDelayMilis)
+    setTimeout( function() { updatePredictionTable(null, true) } , queueDelayMilliseconds)
   }
 
   performance.mark("updatePredictionTable-end")
