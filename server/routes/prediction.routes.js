@@ -564,7 +564,7 @@ async function prepareSolicitationTable() {
 }
 
 async function updatePredictionTable  (clearAllAfterDate, background = false) {
-  let fetch_limit = 100
+  let fetch_limit = 10
 
   if (background) {
     background_count -= 1
@@ -648,8 +648,9 @@ async function updatePredictionTable  (clearAllAfterDate, background = false) {
 
   if (timeout && background_count == 0) {
     background_count += 1
-    logger.log("info", `Prediction update hit time of ${maxSeconds} seconds limit - queuing another round of updates. ${background_count} in the queue`)
-    setTimeout( function() { updatePredictionTable(null, true) } , queueDelaySeconds)
+    cost queueDelayMilis = queueDelaySeconds * 1000
+    logger.log("info", `Prediction update hit time of ${maxSeconds} seconds limit - queuing another round of updates in ${queueDelaySeconds}. ${background_count} in the queue`)
+    setTimeout( function() { updatePredictionTable(null, true) } , queueDelayMilis)
   }
 
 
