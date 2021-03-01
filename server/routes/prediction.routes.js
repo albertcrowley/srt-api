@@ -11,6 +11,7 @@ const survey_routes = require('../routes/survey.routes')
  * Prediction routes
  */
 const logger = require('../config/winston')
+const {performance, perfObserver} = require('../shared/perfMon')
 const db = require('../models/index')
 /**
  * @typedef {Object} SqlString
@@ -279,6 +280,8 @@ function mergeOnePrediction (older, newer) {
  * @return Array Merged prediction list
  */
 function mergePredictions (predictionList) {
+  performance.mark("mergePredictions-start")
+
   let merged = []
   let dupeIndex = {}
 
@@ -293,6 +296,9 @@ function mergePredictions (predictionList) {
       dupeIndex[ p.solNum ] = merged.length - 1
     }
   }
+
+  performance.mark("mergePredictions-end")
+  performance.measure("mergePredictions", "mergePredictions-start", "mergePredictions-end")
 
   return (Object.keys(merged)).map(key => merged[key])
 }
@@ -564,6 +570,8 @@ async function prepareSolicitationTable() {
 }
 
 async function updatePredictionTable  (clearAllAfterDate, background = false) {
+  performance.mark("updatePredictionTable-start")
+
   let fetch_limit = 10
 
   if (background) {
@@ -653,11 +661,14 @@ async function updatePredictionTable  (clearAllAfterDate, background = false) {
     setTimeout( function() { updatePredictionTable(null, true) } , queueDelayMilis)
   }
 
+  performance.mark("updatePredictionTable-end")
+  performance.measure("updatePredictionTable", "updatePredictionTable-start", "updatePredictionTable-end")
 
     return actualCount
 }
 
 function getOutdatedPrediction(fetch_limit = 500) {
+  performance.mark("getOutdatedPrediction-start")
 
 
   let sql = `
@@ -708,8 +719,15 @@ function getOutdatedPrediction(fetch_limit = 500) {
     .then(async notices => {
       let data = []
       for (let i = 0; i < notices.length; i++) {
+        performance.mark("makeOnePrediction-1-start")
         data[i] =cloneDeep( await makeOnePrediction(notices[i]))
+        performance.mark("makeOnePrediction-1-end")
+        performance.measure("makeOnePrediction", "makeOnePrediction-1-start", "makeOnePrediction-1-end")
       }
+
+      performance.mark("getOutdatedPrediction-end")
+      performance.measure("getOutdatedPrediction", "getOutdatedPrediction-start", "getOutdatedPrediction-end")
+
       return mergePredictions(data)
     })
     .catch(e => {
