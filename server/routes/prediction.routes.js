@@ -114,7 +114,11 @@ let background_count = 0
 /** @namespace notice.attachment_json */
 /** @namespace notice.spamProtect */
 async function makeOnePrediction (notice) {
+  performance.mark("makeOnePrediction-start")
+
   let o = {} // Object.assign({}, template);
+
+  logger.log("debug", `makeOnePrediction starting for ${notice.solicitation_number}`)
 
   try {
     o.id = notice.id
@@ -215,6 +219,10 @@ async function makeOnePrediction (notice) {
   } catch (e) {
     logger.log("error", "Error building a prediction object", {tag: "MakeOnePrediction", error: e.message, trace: e.stack})
   }
+
+  performance.mark("makeOnePrediction-end")
+  performance.measure(`makeOnePrediction-${notice.solicitation_number}`, "makeOnePrediction-start", "makeOnePrediction-end")
+
   return o
 }
 
@@ -719,10 +727,7 @@ function getOutdatedPrediction(fetch_limit = 500) {
     .then(async notices => {
       let data = []
       for (let i = 0; i < notices.length; i++) {
-        performance.mark("makeOnePrediction-1-start")
         data[i] =cloneDeep( await makeOnePrediction(notices[i]))
-        performance.mark("makeOnePrediction-1-end")
-        performance.measure("makeOnePrediction", "makeOnePrediction-1-start", "makeOnePrediction-1-end")
       }
 
       performance.mark("getOutdatedPrediction-end")
