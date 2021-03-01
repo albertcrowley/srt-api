@@ -599,7 +599,7 @@ async function updatePredictionTable  (clearAllAfterDate, background = false) {
   await prepareSolicitationTable()
 
   // lets try only running for max number of seconds before returning
-  const maxSeconds = getConfig("updatePredictionTableMaxRunTime", 20)
+  const maxSeconds = getConfig("updatePredictionTableMaxRunTime", 10) * (background ? 2 : 1)
   const queueDelaySeconds = getConfig("updatePredictionTableQueueDelay", 60)
 
 
