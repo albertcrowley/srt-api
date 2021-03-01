@@ -648,7 +648,7 @@ async function updatePredictionTable  (clearAllAfterDate, background = false) {
 
   if (timeout && background_count == 0) {
     background_count += 1
-    cost queueDelayMilis = queueDelaySeconds * 1000
+    const queueDelayMilis = queueDelaySeconds * 1000
     logger.log("info", `Prediction update hit time of ${maxSeconds} seconds limit - queuing another round of updates in ${queueDelaySeconds}. ${background_count} in the queue`)
     setTimeout( function() { updatePredictionTable(null, true) } , queueDelayMilis)
   }
