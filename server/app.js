@@ -13,10 +13,20 @@ const CASAuthentication = require('cas-authentication')
 const jwtSecret = common.jwtSecret || undefined
 const {getConfig} = require('./config/configuration')
 const logger = require('./config/winston')
+const {cleanAwardNotices} = require('./cron/noticeAwardCleanup')
+const {CronJob} = require('cron')
+
 
 if (! jwtSecret) {
   console.log("No JWT secret defined.  Be sure to set JWT_SECRET in the environment before running startup") // allowed output
   process.exit(1)
+}
+
+function setupCronJobs() {
+  const noticeAwardJob = new CronJob('20 6 * * *', cleanAwardNotices)
+  noticeAwardJob.start()
+  // also run the cleanAwardNotices function once on startup!
+  cleanAwardNotices()
 }
 
 //
@@ -208,6 +218,8 @@ module.exports = function (db, cas) {
       }
     }
   }))
+
+  setupCronJobs()
 
   return app
 }

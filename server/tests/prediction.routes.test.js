@@ -995,8 +995,8 @@ describe('prediction tests', () => {
 
   }, 60000)
 
-  // ATCFAIL
-  test.only("Attachments have posted dates", async () => {
+
+  test("Attachments have posted dates", async () => {
 
     let sql = `select * from "Predictions" where jsonb_array_length("parseStatus") > 2 limit 1`
     let results = await db.sequelize.query(sql, null)
