@@ -82,7 +82,7 @@ module.exports = function (db, cas) {
   let transports = [ new winston.transports.File({ filename: 'winston.log.json', level: 'debug' }) ]
   // Don't log to stdout when running tests
   if (config['logStdOut'] && process.env.JEST_WORKER_ID === undefined) {
-    transports.push(new winston.transports.Console({ level: 'info', json: true }))
+    transports.push(new winston.transports.Console({ level: getConfig("logStdOutLevel", "info"), json: true }))
   }
 
   app.use(expressWinston.logger({

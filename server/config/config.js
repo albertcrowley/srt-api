@@ -210,7 +210,8 @@ module.exports = {
       "port": 3000
     },
     "srtClientUrl": "http://localhost:4200",
-    "logStdOut" : false,
+    "logStdOut" : true,
+    "logStdOutLevel" : "debug",
     "maxCas" : {
       "cas_url" : "https://login.test.max.gov/cas/",
       "service_url" : "http://localhost:3000",
@@ -243,6 +244,7 @@ module.exports = {
     },
     "srtClientUrl": "https://srt-client-dev.app.cloud.gov",
     "logStdOut" : true,
+    "logStdOutLevel" : "error",
     "maxCas" : {
       "cas_url" : "https://login.test.max.gov/cas/",
       "service_url" : "http://localhost:3000",

@@ -632,9 +632,7 @@ async function updatePredictionTable  (clearAllAfterDate, background = false) {
     try {
       // get it's active/inactive status from the solicitations table
       let sol_row = await db.sequelize.query(`select active from solicitations where "solNum" = :sn`, { replacements: {"sn": pred.solNum}, type: db.sequelize.QueryTypes.SELECT })
-      pred.solNum //?
-      sol_row[0].active //?
-      pred.active = sol_row[0]['active'] //?
+      pred.active = sol_row[0]['active']
 
       logger.log("debug", `Rebuilding prediction ${pred.solNum}`, {tag:'updatePredictionTable', prediction: pred})
       delete (pred.id) // remove the id since that should be auto-increment
@@ -675,11 +673,12 @@ async function updatePredictionTable  (clearAllAfterDate, background = false) {
     return actualCount
 }
 
-function getOutdatedPrediction(fetch_limit = 500) {
-  performance.mark("getOutdatedPrediction-start")
+async function getOutdatedPrediction(fetch_limit = 500) {
 
+  try {
+    performance.mark("getOutdatedPrediction-start")
 
-  let sql = `
+    let sql = `
             select n.*, notice_type, attachment_json
             from notice n
             left join (
@@ -723,22 +722,22 @@ function getOutdatedPrediction(fetch_limit = 500) {
                 )
              `
 
-  return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
-    .then(async notices => {
-      let data = []
-      for (let i = 0; i < notices.length; i++) {
-        data[i] =cloneDeep( await makeOnePrediction(notices[i]))
-      }
+    let notices = await db.sequelize.query(sql, {type: db.sequelize.QueryTypes.SELECT})
 
-      performance.mark("getOutdatedPrediction-end")
-      performance.measure("getOutdatedPrediction", "getOutdatedPrediction-start", "getOutdatedPrediction-end")
+    let data = []
+    for (let i = 0; i < notices.length; i++) {
+      data[i] = cloneDeep(await makeOnePrediction(notices[i]))
+    }
 
-      return mergePredictions(data)
-    })
-    .catch(e => {
-      logger.log('error', 'error in: getOutdatedPrediction', { error:e, tag: 'getOutdatedPrediction', sql: sql })
-      return null
-    })
+    performance.mark("getOutdatedPrediction-end")
+    performance.measure("getOutdatedPrediction", "getOutdatedPrediction-start", "getOutdatedPrediction-end")
+
+    return mergePredictions(data)
+
+  } catch (e) {
+    logger.log('error', 'error in: getOutdatedPrediction', {error: e, tag: 'getOutdatedPrediction', sql: sql})
+    return null
+  }
 }
 
 function makeDate(x) {
