@@ -143,7 +143,7 @@ describe('Tests for admin reports and charts', () => {
     expect(Object.keys(report.newSolicitationsByDate).length).toBeGreaterThan(1)
     expect(Object.keys(report.updatedSolicitationsByDate).length).toBeGreaterThan(1)
 
-  })
+  }, 60000)
 
 
   test('solicitationDownloads CSV Download', async () => {
