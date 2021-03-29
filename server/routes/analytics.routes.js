@@ -83,7 +83,7 @@ async function computeAnalytics (params, user) {
     // set some defaults
     let from =   ( params.from ) ? params.from : new Date(2000,1,1)
     let to = ( params.to ) ? params.to : new Date(2222,2,2)
-    let agency = ( params.agency) ? params.agency : user.agency  //?
+    let agency = ( params.agency) ? params.agency : user.agency
 
 
     let result = await predictionRoutes.getPredictions(params, user);
@@ -489,12 +489,10 @@ module.exports = {
       let to = new Date(date[2], date[0] - 1, date[1])
 
       params.agency = agency
-      params.from = from //?
-      params.to = to //?
+      params.from = from
+      params.to = to
       // params.agency = agency
       let user = authRoutes.userInfoFromReq(req)
-
-      user.agency //?
 
       let analytics = await computeAnalytics(params, user)
 

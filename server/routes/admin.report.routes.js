@@ -33,14 +33,16 @@ function sendSolicitationDownloadsCSV(solStats, res) {
 
   for (key of Object.keys(bothByDate)) {
     const row = {}
-    row[dateHeader] = key
+    // key will be in YYYYMMDD format. Convert it to MM/DD/YYYY
+    let date = key.substring(4,6) + "-" + key.substring(6,8) + "-" + key.substring(0,4)
+    row[dateHeader] = date
     row[newHeader] = bothByDate[key][newHeader]
     row[updateHeader] = bothByDate[key][updateHeader]
     solStatsOrganizedForCSV.push(row)
   }
 
   const parser = new json2cvs.Parser({fields: [dateHeader, newHeader, updateHeader]})
-  const csv_data = parser.parse(solStatsOrganizedForCSV) //?
+  const csv_data = parser.parse(solStatsOrganizedForCSV)
 
 
 
@@ -137,7 +139,7 @@ module.exports = {
    */
   solicitationDownloads : async function (req, res) {
     try {
-      let user = authRoutes.userInfoFromReq(req) //?
+      let user = authRoutes.userInfoFromReq(req)
 
       let solStats = undefined
       let first = 0
