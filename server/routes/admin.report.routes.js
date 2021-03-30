@@ -7,6 +7,39 @@ const analyticsRoutes = require('../routes/analytics.routes')
 const predictionRoutes = require('./prediction.routes')
 const authRoutes = require('./auth.routes')
 const json2cvs = require('json2csv')
+const { formatDateAsString } = require('../shared/time')
+
+/*
+ Helper function to run reports on all predictions
+*/
+async function runGenericMetricReport (user, report_function) {
+  try {
+
+    let solStats = undefined
+    let first = 0
+    let rows = 5000
+    while (true) {
+      let result = await predictionRoutes.getPredictions({'first': first, 'rows': rows, 'ignoreDateCutoff': true, 'sortField': 'date'}, user);
+      solStats = await report_function(result.predictions, solStats)
+      logger.log("info", `Running solicitation download report, asking for ${rows} solicitations with offset ${first}. We got ${result.rows} Total solicitations in report is ${result.totalCount} `)
+
+      if (result.rows == 0) {
+        break;
+      }
+      first += result.rows
+    }
+
+    return solStats //?
+
+
+  } catch (e) {
+    e.message //?
+    // logger.log("error", `Error running report ${report_function.name}`, {tag: "solicitationDownloads report", "error-message": e.message, err:e } )
+    return res.status(500).send({})
+  }
+
+
+}
 
 
 function sendSolicitationDownloadsCSV(solStats, res) {
@@ -51,6 +84,108 @@ function sendSolicitationDownloadsCSV(solStats, res) {
   res.status(200)
   return res.send(csv_data)
 
+}
+
+function sendPredictionReportCSV(solStats, res) {
+
+  // first, normalize the agency name columns so we have the same column list for each date
+  // get all the headers
+  let headers = new Set()
+  for (let day in solStats.stateByDate) {
+    for (let header in solStats.stateByDate[day]) {
+      headers.add(header)
+    }
+  }
+
+  // add in any missing headers for each day
+  for (let day in solStats.stateByDate) {
+    for (let header of headers) {
+      if (solStats.stateByDate[day][header] === undefined) {
+        solStats.stateByDate[day][header] = 0
+      }
+    }
+  }
+  const solStatsOrganizedForCSV = []
+  for (let day in solStats.stateByDate) {
+    let row = solStats.stateByDate[day]
+    solStatsOrganizedForCSV.push(row)
+  }
+
+  const parser = new json2cvs.Parser({fields: Array.from(headers)})
+  const csv_data = parser.parse(solStatsOrganizedForCSV)
+
+
+
+  res.header('Content-Type', 'text/csv')
+  res.attachment("solicitation-report.csv")
+  res.status(200)
+  return res.send(csv_data)
+}
+
+async function calcPredictionReport(allSolicitations, stats = undefined) {
+  const COMP = 1
+  const NONCOMP = 2
+  const NA = 3
+
+  try {
+    if (!stats) {
+      stats = {
+        totalSolicitations: 0,
+        totalCompliant: 0,
+        totalNonCompliant: 0,
+        totalNotApplicable: 0,
+        stateByDate: {},
+      }
+    }
+
+    for (let sol of allSolicitations) {
+      stats.totalSolicitations++;
+      let day = formatDateAsString(sol.date) //?
+      let state = undefined
+      let agency = sol.agency
+
+      if (stats.stateByDate[day] === undefined) {
+        stats.stateByDate[day] = {
+          'date': day,
+          'total for day': 0,
+          'compliant all agencies': 0,
+          'non-compliant all agencies': 0,
+          'not applicable all agencies': 0
+        }
+      }
+      if(stats.stateByDate[day][agency+' compliant'] === undefined) {
+        stats.stateByDate[day][agency+' compliant'] = 0
+        stats.stateByDate[day][agency+' non-compliant'] = 0
+        stats.stateByDate[day][agency+' not applicable'] = 0
+      }
+
+      stats.stateByDate[day]['total for day'] += 1
+
+      if (sol.na_flag) {
+        state = 'not applicable'
+        stats.totalNotApplicable += 1
+        stats.stateByDate[day][agency+' not applicable'] += 1
+        stats.stateByDate[day]['not applicable all agencies'] += 1
+      } else {
+        if (sol.predictions.value == 'green') {
+          state = 'compliant'
+          stats.totalCompliant += 1
+          stats.stateByDate[day][agency+' compliant'] += 1
+          stats.stateByDate[day]['compliant all agencies'] += 1
+        } else {
+          state = 'non-compliant'
+          stats.totalNonCompliant += 1
+          stats.stateByDate[day][agency+' non-compliant'] += 1
+          stats.stateByDate[day]['non-compliant all agencies'] += 1
+        }
+      }
+
+    }
+
+    return stats
+  } catch (e) {
+    logger.log("error", "Error calculating stats", {tag: "calcSolicitations", error: e})
+  }
 }
 
 module.exports = {
@@ -140,19 +275,7 @@ module.exports = {
   solicitationDownloads : async function (req, res) {
     try {
       let user = authRoutes.userInfoFromReq(req)
-
-      let solStats = undefined
-      let first = 0
-      let rows = 1000
-      while (true) {
-        let result = await predictionRoutes.getPredictions({'first': first, 'rows': rows, 'ignoreDateCutoff': true}, user);
-        solStats = await analyticsRoutes.calcSolicitations(result.predictions, solStats)
-        logger.log("info", `Running solicitation download report, asking for ${rows} solicitations with offset ${first}. We got ${result.rows} Total solicitations in report is ${result.totalCount} `)
-        if (result.rows == 0) {
-          break;
-        }
-        first += result.rows
-      }
+      let solStats = await runGenericMetricReport(user, analyticsRoutes.calcSolicitations)
 
       if (req.query.format && req.query.format.toLocaleLowerCase()== 'csv') {
         return sendSolicitationDownloadsCSV(solStats, res)
@@ -160,15 +283,33 @@ module.exports = {
         return res.status(200).send(solStats)
       }
 
+    } catch (e) {
+      logger.log("error", "Error running solicitation download report", {tag: "solicitationDownloads report", "error-message": e.message, err:e } )
+      e.message //?
+      return res.status(500).send({})
+    }
+  },
 
+  /*
+  Looks at all solicitations and reports on their compliance by agency
+   */
+  predictionReport : async function (req, res) {
+    try {
+      let user = authRoutes.userInfoFromReq(req)
+      let solStats = await runGenericMetricReport(user, calcPredictionReport )
+
+      if (req.query.format && req.query.format.toLocaleLowerCase()== 'csv') {
+        return sendPredictionReportCSV(solStats, res)
+      } else {
+        return res.status(200).send(solStats)
+      }
 
     } catch (e) {
       logger.log("error", "Error running solicitation download report", {tag: "solicitationDownloads report", "error-message": e.message, err:e } )
       e.message //?
       return res.status(500).send({})
     }
-
-
   }
+
 
 }
