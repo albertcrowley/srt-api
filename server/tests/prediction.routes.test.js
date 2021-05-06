@@ -19,7 +19,6 @@ const {common, config_keys} = require('../config/config.js')
 const timeout = 10000 // set to 10 seconds because some of these tests are slow.
 const mocks = require('./mocks')
 const configuration = require('../config/configuration')
-const moment = require('moment')
 
 
 const { userAcceptedCASData } = require('./test.data')
@@ -304,11 +303,10 @@ describe('prediction tests', () => {
   }, timeout)
 
   test('Filter predictions on solicitation number', () => {
-    return db.sequelize.query('select "solNum" from "Predictions" where "noticeType" = \'Solicitation\' order by id desc limit 1', null)
+    return db.sequelize.query('select solicitation_number from notice join notice_type nt on notice.notice_type_id = nt.id where nt.notice_type = \'Solicitation\' order by notice.id desc limit 1', null)
       .then((rows) => {
-        let noticeNum = rows[0][0].solNum //?
+        let noticeNum = rows[0][0].solicitation_number
         expect(noticeNum).toBeDefined()
-        console.log ("*****************************")
         return request(app)
           .post('/api/predictions/filter')
           .set('Authorization', `Bearer ${token}`)
@@ -368,19 +366,13 @@ describe('prediction tests', () => {
   test('Test prediction date filters', async () => {
     let rows = await db.sequelize.query('select date from notice order by date desc, agency desc limit 1', null)
 
-    let date = rows[0][0].date //?
+    let date = rows[0][0].date
     let year = date.getFullYear()
     let month = date.getMonth() + 1
     let day = date.getDate()
     let dayPlus = day + 2  // account for rounding on the db side might
-    let start = `${month}/${day}/${year}` //?
-    let end = `${month}/${dayPlus}/${year}` //?
-    let startBound = new Date(rows[0][0].date)
-    let endBound = new Date(rows[0][0].date)
-    startBound.setDate( startBound.getDate() - 1) //?
-    endBound.setDate(endBound.getDate() + 2) //?
-    startBound //?
-    endBound //?
+    let start = `${month}/${day}/${year}`
+    let end = `${month}/${dayPlus}/${year}`
 
     let res = await request(app)
       .post('/api/predictions/filter')
@@ -393,12 +385,10 @@ describe('prediction tests', () => {
     expect(res.statusCode).toBe(200)
     expect(res.body.predictions.length).toBeGreaterThan(1)
     for (let i = 0; i < res.body.predictions.length; i++) {
-      console.log("*****")
-      console.log (res.body.predictions[i].date)
-      res.body.predictions[i].date //?
-      new Date(res.body.predictions[i].date) //?
-      expect(new Date(res.body.predictions[i].date) > startBound).toBeTruthy() // don't forget months are 0 indexed!
-      expect(new Date(res.body.predictions[i].date) < endBound).toBeTruthy()
+      res.body.predictions[i].date
+      new Date(year, month - 1, dayPlus)
+      expect(new Date(res.body.predictions[i].date) > new Date(year, month - 1, day)).toBeTruthy() // don't forget months are 0 indexed!
+      expect(new Date(res.body.predictions[i].date) < new Date(year, month - 1, dayPlus)).toBeTruthy()
     }
 
     res = await request(app)
@@ -598,17 +588,17 @@ describe('prediction tests', () => {
       })
   }, timeout)
 
-  test('default solicitation title', async () => {
+  test('default solicitation title', () => {
     let notice = {}
-    let prediction = await predictionRoutes.makeOnePrediction(notice)
+    let prediction = predictionRoutes.makeOnePrediction(notice)
     expect(prediction.title).toBe('title not available')
 
     notice = { notice_data: {} }
-    prediction = await predictionRoutes.makeOnePrediction(notice)
+    prediction = predictionRoutes.makeOnePrediction(notice)
     expect(prediction.title).toBe('title not available')
 
     notice = { notice_data: { subject: 'title here' } }
-    prediction = await predictionRoutes.makeOnePrediction(notice)
+    prediction = predictionRoutes.makeOnePrediction(notice)
     expect(prediction.title).toBe('title here')
   }, timeout)
 
@@ -990,40 +980,6 @@ describe('prediction tests', () => {
     let {totalCount: dodCount} = await predictionRoutes.getPredictions({}, mocks.mockDoDUser)
     expect(dodCount).toBeGreaterThan(1)
     expect(dodCount).toBeLessThan(totalCount)
-
-  })
-
-  test("Attachments have posted dates", async () => {
-    let {predictions, totalCount} = await predictionRoutes.getPredictions({}, mocks.mockAdminUser)
-    expect(totalCount).toBeGreaterThan(1)
-    let index = 0;
-    let targetPrediction = predictions[index]
-    while (targetPrediction.parseStatus.length < 2) {
-      index++
-      targetPrediction = predictions[index]
-    }
-
-    targetPrediction.solNum //?
-    let count = await predictionRoutes.invalidate(targetPrediction.solNum) //?
-
-
-    targetPrediction.solNum //?
-
-    let {predictions:updated_predictions} = await predictionRoutes.getPredictions({ rows: 1, filters: {"solNum": {value: targetPrediction.solNum, matchMode: 'equals'}} }, mocks.mockAdminUser)
-    const targetPrediction2 = updated_predictions[0] //?
-    targetPrediction2.solNum //?
-
-    targetPrediction2.date //?
-    targetPrediction2 //?
-
-    for (const attachment of targetPrediction2.parseStatus) {
-      let notice_id = attachment.notice_id
-      let notice = await Notice.findByPk(notice_id)
-      let posted_date = notice.dataValues.date
-      posted_date //?
-
-      expect( moment(attachment.postedDate).format('MM/DD/YYYY HH:mm ZZ') ).toBe(moment(posted_date).format('MM/DD/YYYY HH:mm ZZ'))
-    }
 
   })
 

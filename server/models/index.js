@@ -59,16 +59,7 @@
  * @property {Object} predictions
  * @property {string} reviewRec
  * @property {string} searchText
- * @property {boolean} active
  */
-
-/**
- * @typedef {Model} Solicitation
- * @property {number} id
- * @property {string} solNum
- * @property {boolean} active
- */
-
 
 /**
  * @typedef {Model} NoticeType
@@ -148,7 +139,7 @@ fs
     return (file.indexOf('.') !== 0) && (file !== basename) && (file.slice(-3) === '.js')
   })
   .forEach(file => {
-    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes)
+    const model = sequelize['import'](path.join(__dirname, file))
     db[model.name] = model
   })
 

@@ -158,9 +158,7 @@ module.exports = {
       "MILLENNIUM CHALLENGE CORPORATION":"Millennium Challenge Corporation"
     },
     VisibleNoticeTypes : ['Solicitation', 'Combined Synopsis/Solicitation'],
-    //"minPredictionCutoffDate" : "2020-02-01T00:00:00.000Z",
-    "predictionCutoffDays" : 600,
-    "updatePredictionTableMaxRunTime" : 25
+    "minPredictionCutoffDate" : "2020-02-01T00:00:00.000Z"
   },
   development: {
     "emailFrom": "crowley+srt@tcg.com",
@@ -179,7 +177,7 @@ module.exports = {
       "port": 3000
     },
     "srtClientUrl": "http://localhost:4200",
-    "logStdOut" : false,
+    "logStdOut" : true,
     "maxCas" : {
       "cas_url" : "https://login.test.max.gov/cas/",
       "service_url" : "http://localhost:3000",

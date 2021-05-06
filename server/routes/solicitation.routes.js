@@ -106,8 +106,7 @@ module.exports = function (db, userRoutes) {
               // we should only have one 'prediction' since they will all merge by solicitation number
               // but for consistency we should set the ID number to the one requested rather than to
               // a pseudo-random choice
-                result.predictions[0].id = parseInt(req.params.id)
-                result.predictions[0].active //?
+              result.predictions[0].id = parseInt(req.params.id)
 
               return res.status(200).send(result.predictions[0])
             })
@@ -169,7 +168,7 @@ module.exports = function (db, userRoutes) {
 
 
           return notice.save()
-            .then( async (n) => {
+            .then( (n) => {
               // noinspection JSUnresolvedVariable
               logger.log("info",
                 `Updated Notice row for solicitation ${notice.solicitation_number}`,
@@ -178,7 +177,7 @@ module.exports = function (db, userRoutes) {
                       test_flag: req.body.solicitation.na_flag,
                       na_flag: (n.na_flag) ? "true" : "false"
                 })
-              return res.status(200).send(await predictionRoute.makeOnePrediction(n))
+              return res.status(200).send(predictionRoute.makeOnePrediction(n))
             })
             .catch (error => {
               logger.log("error", "Error in solicitation update", {tag: 'solicitation update', error: error})
@@ -231,8 +230,8 @@ module.exports = function (db, userRoutes) {
 
           // noinspection JSUnresolvedFunction
           return notice.save()
-            .then(async (doc) => {
-              return res.status(200).send(await predictionRoute.makeOnePrediction(doc))
+            .then((doc) => {
+              return res.status(200).send(predictionRoute.makeOnePrediction(doc))
             })
             .catch((e) => {
               logger.log('error', 'error in: postSolicitation - error on save', { error:e, tag: 'postSolicitation - error on save' })
@@ -283,13 +282,8 @@ module.exports = function (db, userRoutes) {
       let sql = `select * from notice where ${whereStr} ${order} ${limit}`
 
       return db.sequelize.query(sql, { type: db.sequelize.QueryTypes.SELECT })
-        .then(async (notice) => {
-          const result = []
-          for (const n of notice) {
-            const pred = await predictionRoute.makeOnePrediction(n)
-            result.push(pred)
-          }
-          res.status(200).send(result)
+        .then((notice) => {
+          res.status(200).send(notice.map(predictionRoute.makeOnePrediction))
         })
         .catch(e => {
           logger.log('error', 'error in: solicitationFeedback', { error:e, tag: 'solicitationFeedback' })

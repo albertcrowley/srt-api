@@ -2,41 +2,22 @@
 let jwt = require('jsonwebtoken')
 const logger = require('../config/winston')
 const {common} = require('../config/config')
-const {roles} = require('../routes/auth.routes')
 
-/*
-Check that:
- - there is an authorization header
- - the token is properly signed
- - the user has a SRT role
- */
 module.exports = function () {
   return async function (req, res, next) {
     let failed = true
     let token = '-no token-'
-    let message = 'Unauthorized'
 
     try {
       if (req.headers.hasOwnProperty('authorization')) {
-        logger.log('debug', "Begin authentication. ", {tag: 'token check 3', auth_header: req.headers['authorization']})
-        message += " - authorization header was found"
         token = req.headers['authorization'].split(' ')[1]
         if (token && token !== 'null') {
           jwt.verify(token, common.jwtSecret) // will thrown an error on an invalid token
-
-          // next check the role
-          let decoded = jwt.decode(token)
-          let rollList = roles.map( (x) => x.name) //?
-          if (decoded.user.userRole && rollList.includes(decoded.user.userRole) ) {
-            logger.log('debug', "Authentication successful. ")
-            next()
-            return
-          } else {
-            message = 'Account must belong to an SRT role.'
-          }
-        } else {
-          message += " - malformed or empty authorization header"
+          failed = false
+          next()
         }
+      } else {
+        failed = true
       }
     } catch (err) {
       // this will be logged in the if (failed) block
@@ -44,10 +25,10 @@ module.exports = function () {
     }
 
     if (failed) {
-      logger.log('info', 'failed token check for token, message: ' + message, {tag:'token', token: token})
+      logger.log('info', 'failed token check for token ' + token, {tag:'token'})
       return res.status(401).send({
         success: false,
-        message: message
+        message: 'Unauthorized'
       })
     }
   }

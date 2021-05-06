@@ -22,7 +22,7 @@ module.exports = {
     return {
       body: data,
       get: jest.fn ( function(x) { return headers[x]}),
-      session: Object.assign(session || {}, { destroy: ()=>{} } ),
+      session: session,
       headers: headers
     }
   },
