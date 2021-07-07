@@ -42,7 +42,7 @@
     "nodemailer": "^5.1.1",
     "pg": "^7.18.2",
     "random-words": "^1.1.1",
-    "sequelize": "^5.21.7",
+    "sequelize": "^6.6.5",
     "sequelize-cli": "^5.5.1",
     "umzug": "^2.3.0",
     "winston": "^3.2.1"
