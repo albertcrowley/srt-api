@@ -35,7 +35,7 @@
     "express": "^4.17.1",
     "express-session": "^1.17.1",
     "express-winston": "^3.4.0",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.0",
     "lodash": "^4.17.15",
     "moment": "^2.27.0",
     "ms": "^2.1.2",
