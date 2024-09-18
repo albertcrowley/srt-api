@@ -32,7 +32,7 @@
     "cas-authentication": "0.0.8",
     "clone-deep": "^4.0.1",
     "cors": "^2.8.5",
-    "express": "^4.17.1",
+    "express": "^4.20.0",
     "express-session": "^1.17.1",
     "express-winston": "^3.4.0",
     "jsonwebtoken": "^8.5.1",
